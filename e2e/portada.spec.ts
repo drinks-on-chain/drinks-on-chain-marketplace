@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { codeField, expectNoHorizontalScroll, isMobile, trackErrors, verifyButton } from "./support";
+import { CASE, codeField, expectNoHorizontalScroll, isMobile, trackErrors, verifyButton } from "./support";
 
-// Portada provisional, shell y PWA básica (O2-MK-1, fase 1). Cada prueba corre a 390 y a 1280 px.
+// Portada, shell y PWA básica (O2-MK-1). Cada prueba corre a 390 y a 1280 px.
 
-test("portada: marca, verificar una botella y catálogo próximamente", async ({ page }) => {
+test("portada: marca, verificar una botella, destacados del catálogo y bodegas", async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto("/");
 
@@ -14,8 +14,12 @@ test("portada: marca, verificar una botella y catálogo próximamente", async ({
   await expect(codeField(page)).toBeVisible();
   await expect(verifyButton(page)).toBeVisible();
 
-  await expect(page.getByRole("heading", { level: 2, name: "Catálogo" })).toBeVisible();
-  await expect(page.getByText("Próximamente", { exact: true })).toBeVisible();
+  // Destacados: cuatro colecciones, primero las que están a la venta.
+  const featured = page.getByRole("region", { name: "Destacados" });
+  await expect(featured.getByRole("article")).toHaveCount(4);
+  await expect(featured.getByRole("article").first()).toContainText("A la venta");
+  await expect(featured.getByRole("link", { name: "Ver todo el catálogo" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Las bodegas" })).toBeVisible();
 
   // Sitio público: nadie entra ni se le manda a un login.
   await expect(page).toHaveURL(/\/$/);
@@ -23,6 +27,13 @@ test("portada: marca, verificar una botella y catálogo próximamente", async ({
 
   await expectNoHorizontalScroll(page);
   expect(errors).toEqual([]);
+});
+
+test("de un destacado a su ficha", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("region", { name: "Destacados" }).getByRole("link", { name: CASE.name }).click();
+  await expect(page).toHaveURL(new RegExp(`/catalogo/${CASE.collectionSlug}$`));
+  await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
 });
 
 test("StoreShell: pestañas inferiores en móvil, cabecera en escritorio", async ({ page }) => {
@@ -33,6 +44,7 @@ test("StoreShell: pestañas inferiores en móvil, cabecera en escritorio", async
   if (isMobile(page)) {
     await expect(tabs).toBeVisible();
     await expect(header).toBeHidden();
+    await expect(tabs.getByRole("link")).toHaveText(["Inicio", "Catálogo", "Verificar", "Bodegas"]);
     await expect(tabs.getByRole("link", { name: "Inicio" })).toHaveAttribute("aria-current", "page");
     // Objetivos táctiles de al menos 44 px.
     for (const link of await tabs.getByRole("link").all()) {
@@ -44,25 +56,13 @@ test("StoreShell: pestañas inferiores en móvil, cabecera en escritorio", async
   } else {
     await expect(header).toBeVisible();
     await expect(tabs).toBeHidden();
+    await expect(header.getByRole("link")).toHaveText(["Catálogo", "Bodegas", "Verificar"]);
     await header.getByRole("link", { name: "Verificar" }).click();
   }
 
   await expect(page).toHaveURL(/\/b$/);
   await expect(page.getByRole("heading", { level: 1, name: "Verifica una botella" })).toBeVisible();
   await expectNoHorizontalScroll(page);
-});
-
-test("catálogo: próximamente, con salida hacia verificar", async ({ page }) => {
-  const errors = trackErrors(page);
-  await page.goto("/");
-  await page.getByRole("link", { name: "Ver el catálogo" }).click();
-  await expect(page).toHaveURL(/\/catalogo$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Catálogo" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "El catálogo llega muy pronto" })).toBeVisible();
-
-  await page.getByRole("link", { name: "Verifica una botella" }).click();
-  await expect(page).toHaveURL(/\/b$/);
-  expect(errors).toEqual([]);
 });
 
 test("el pie enlaza con los otros sitios solo por NEXT_PUBLIC_URL_*", async ({ page }) => {
@@ -72,7 +72,7 @@ test("el pie enlaza con los otros sitios solo por NEXT_PUBLIC_URL_*", async ({ p
     "href",
     "https://landing.ejemplo.test/",
   );
-  await expect(footer.getByRole("link", { name: "Bodegas de la red" })).toHaveAttribute(
+  await expect(footer.getByRole("link", { name: "Sitio de las bodegas" })).toHaveAttribute(
     "href",
     "https://bodegas.ejemplo.test/",
   );
@@ -81,9 +81,16 @@ test("el pie enlaza con los otros sitios solo por NEXT_PUBLIC_URL_*", async ({ p
 test("una dirección que no existe muestra la página de no encontrado", async ({ page }) => {
   const response = await page.goto("/no-existe");
   expect(response!.status()).toBe(404);
-  await expect(page.getByRole("heading", { level: 1, name: "Página no encontrada" })).toBeAttached();
+  await expect(page.getByRole("heading", { name: "Página no encontrada" })).toBeVisible();
   await page.getByRole("link", { name: "Volver al inicio" }).click();
   await expect(page).toHaveURL(/\/$/);
+});
+
+test("con datos de demostración nada se indexa", async ({ page }) => {
+  for (const path of ["/", "/catalogo", "/bodegas", `/b/${CASE.lotCode}`, `/b/${CASE.bottle.code}`]) {
+    await page.goto(path);
+    await expect(page.locator('meta[name="robots"]'), path).toHaveAttribute("content", /noindex/);
+  }
 });
 
 test("PWA básica: manifest, iconos y theme-color", async ({ page, request }) => {
