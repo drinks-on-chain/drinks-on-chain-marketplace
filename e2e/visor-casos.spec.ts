@@ -82,7 +82,9 @@ test("límite de consultas por minuto (pasaporte saturado): pide esperar y deja 
   const limited = alerts(page).filter({ hasText: "Demasiados intentos" });
   await expect(limited).toContainText("Por seguridad, espera 1 minuto antes de volver a intentarlo.");
   await expect(page.getByText(/Botella n\.º/)).toHaveCount(0);
-  await expect(page.locator('meta[name="robots"][content="noindex"]')).toHaveCount(1);
+  // Una sola etiqueta `robots`, y dice que no se indexe.
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 
   // Reintentar mientras dura la saturación sigue frenado; al pasar, el pasaporte vuelve.
   await limited.getByRole("button", { name: "Reintentar" }).click();

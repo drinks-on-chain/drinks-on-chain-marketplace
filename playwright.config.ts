@@ -35,6 +35,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI && !REAL ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
+  // Las auditorías axe de las pantallas largas rozan los 30 s por defecto en máquinas cargadas.
+  timeout: 60_000,
   // MSW arranca en el navegador antes de pintar: margen para máquinas cargadas.
   expect: { timeout: REAL ? 20_000 : 10_000 },
   use: {

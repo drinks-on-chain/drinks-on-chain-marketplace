@@ -20,7 +20,7 @@ test("el pasaporte del lote va en el HTML inicial, con sus metadatos, y se puede
   expect(html).toContain("Registro del lote");
   expect(html).toContain("Reglas con las que se hizo el lote");
   // Metadatos del lote.
-  expect(html).toMatch(/<meta name="robots" content="index, follow"/);
+  expect(html.match(/<meta name="robots"[^>]*>/g)).toEqual(['<meta name="robots" content="index, follow"/>']);
   expect(html).toMatch(new RegExp(`<link rel="canonical" href="[^"]*/b/${LOT}"`));
   expect(html).toMatch(/<meta property="og:title" content="[^"]+"/);
   expect(html).toMatch(/<meta name="description" content="[^"]*lote /);

@@ -90,8 +90,7 @@ export function PassportView({ code, query, fromBottle = null }: PassportViewPro
 
   return (
     <PassportColumn eyebrow={isBottle ? es.passport.bottleEyebrow : es.passport.lotEyebrow} title={code.formatted}>
-      {/* Un código que no se pudo mostrar no debe indexarse (la página del lote sí puede). */}
-      {state.status === "loading" ? <PassportSkeleton /> : <meta name="robots" content="noindex" />}
+      {state.status === "loading" ? <PassportSkeleton /> : null}
 
       {state.status === "not-found" ? (
         <>

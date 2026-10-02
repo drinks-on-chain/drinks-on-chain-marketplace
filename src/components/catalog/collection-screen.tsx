@@ -157,7 +157,8 @@ export function CollectionScreen({ slug }: { slug: string }) {
     const notFound = collection.error instanceof ApiError && collection.error.isNotFound;
     return (
       <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
-        <meta name="robots" content="noindex" />
+        {/* Lo que no se encontró no se indexa (con mocks ya lo dice el layout: una sola etiqueta). */}
+        {env.mocks ? null : <meta name="robots" content="noindex" />}
         <h1 className="sr-only">{t.title}</h1>
         {notFound ? (
           <EmptyState

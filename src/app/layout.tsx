@@ -14,9 +14,11 @@ export const metadata: Metadata = {
   // PWA: el manifest sale de `src/app/manifest.ts`; en iOS, "Añadir a inicio" usa estos datos.
   appleWebApp: { capable: true, title: es.app.name, statusBarStyle: "default" },
   formatDetection: { telephone: false },
-  // Con datos de demostración (mocks) nada se indexa. Con el backend real se indexa todo salvo
-  // lo que cada página excluya (los códigos de botella nunca: contrato §12.5).
-  robots: env.mocks ? { index: false, follow: false } : { index: true, follow: true },
+  // Una sola etiqueta `robots` por página. Con datos de demostración (mocks) nada se indexa. Con
+  // el backend real no se pone ninguna aquí (sin etiqueta, la página es indexable) y cada página
+  // que no deba indexarse lo dice: los códigos de botella (contrato §12.5), lo que no se encontró
+  // (`notFound()` añade `noindex`; si el layout declarara `index, follow`, saldrían las dos).
+  robots: env.mocks ? { index: false, follow: false } : undefined,
 };
 
 export const viewport: Viewport = {
