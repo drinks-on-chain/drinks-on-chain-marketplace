@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { COLLECTION_STATUSES, LOT_PRODUCT_TYPES } from "@drinks-on-chain/mocks";
 import { Search, Wine } from "lucide-react";
-import { Button, EmptyState, ErrorState, Field, Input, Pagination, Pill, PillGroup, Select } from "@drinks-on-chain/ui";
+import { Button, EmptyState, ErrorState, Field, Input, Pagination, Pill, PillGroup } from "@drinks-on-chain/ui";
 import { errorMessage } from "@/lib/api/errors";
 import { isCatalogUnavailable, type CollectionFilters } from "@/lib/catalog/api";
 import {
@@ -21,6 +21,7 @@ import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
 import { useUrlParams } from "@/lib/use-url-params";
 import { useWineries } from "@/lib/wineries/hooks";
+import { NativeSelect } from "../store/native-select";
 import { CollectionGrid, CollectionGridSkeleton } from "./collection-grid";
 
 // 2A · Catálogo sin cuenta.
@@ -29,7 +30,6 @@ import { CollectionGrid, CollectionGridSkeleton } from "./collection-grid";
 // "próximamente". Sin compra ni cuenta en esta ola.
 
 const t = es.catalog;
-const ALL_WINERIES = "__todas";
 // Objetivo táctil de 44 px (los `Pill` del paquete miden 32).
 const PILL = "h-11 px-4";
 
@@ -159,12 +159,11 @@ export function CatalogScreen() {
               </div>
 
               <Field label={t.winery} className="md:w-72">
-                <Select
-                  size="lg"
-                  value={filters.winery ?? ALL_WINERIES}
-                  onValueChange={(value) => apply({ ...filters, winery: value === ALL_WINERIES ? undefined : value })}
+                <NativeSelect
+                  value={filters.winery ?? ""}
+                  onChange={(event) => apply({ ...filters, winery: event.target.value || undefined })}
                   options={[
-                    { value: ALL_WINERIES, label: t.allWineries },
+                    { value: "", label: t.allWineries },
                     ...(wineries.data?.items ?? []).map((w) => ({ value: w.slug, label: w.tradeName })),
                     // Una bodega de la URL que el directorio no trae (aún cargando o inactiva) sigue elegida.
                     ...(filters.winery && !wineries.data?.items.some((w) => w.slug === filters.winery)

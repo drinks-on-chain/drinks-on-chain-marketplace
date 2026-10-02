@@ -116,7 +116,7 @@ export function WineryScreen({ slug }: { slug: string }) {
     const notFound = winery.error instanceof ApiError && winery.error.isNotFound;
     return (
       <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
-        <h1 className="sr-only">{notFound ? t.notFoundTitle : t.errorTitle}</h1>
+        <h1 className="sr-only">{t.title}</h1>
         {notFound ? (
           <EmptyState
             icon={<SearchX aria-hidden />}
