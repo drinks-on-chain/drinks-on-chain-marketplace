@@ -1,7 +1,7 @@
-import { PublicCodePassportSchema } from "@drinks-on-chain/mocks";
 import { api } from "@/lib/api/client";
 import { ApiError, NetworkError } from "@/lib/api/errors";
 import { apiText } from "@/lib/api/text";
+import { passportSchema } from "./schema";
 import type { LotPassport, Passport, PassportState } from "./types";
 
 // Pasaporte público (contrato de la Ola 2 §12.1 y §12.4): sin sesión, con límite de peticiones
@@ -17,7 +17,7 @@ export function fetchPassport(code: string, signal?: AbortSignal): Promise<Passp
   return api(`/v1/public/passports/${encodeURIComponent(code)}`, {
     auth: false,
     signal,
-    schema: PublicCodePassportSchema,
+    schema: passportSchema,
   });
 }
 

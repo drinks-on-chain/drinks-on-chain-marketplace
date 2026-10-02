@@ -44,6 +44,22 @@ describe("fetchPassport", () => {
     expect(calls()[0]!.url).toBe(`/api/v1/public/passports/${CASE_LOT}`);
   });
 
+  it("admite las fechas de fermentación como instante (así las devuelve hoy el backend)", async () => {
+    const lot = lotPassport();
+    lot.fermentation.startDate = "2025-03-11T14:30:00.000Z";
+    lot.fermentation.endDate = "2025-04-13T14:30:00.000Z";
+    fetchMock.mockResolvedValueOnce(ok(lot));
+    await expect(fetchPassport(CASE_LOT)).resolves.toMatchObject({
+      fermentation: { startDate: "2025-03-11T14:30:00.000Z" },
+    });
+    fetchMock.mockResolvedValueOnce(ok(bottlePassport({}, lot)));
+    await expect(fetchPassport("664TWFDA")).resolves.toMatchObject({ kind: "BOTTLE" });
+    // Otra cosa que no sea fecha o instante sigue siendo un error de contrato.
+    lot.fermentation.startDate = "marzo";
+    fetchMock.mockResolvedValueOnce(ok(lot));
+    await expect(fetchPassport(CASE_LOT).catch(passportErrorState)).resolves.toEqual({ status: "error" });
+  });
+
   it("una respuesta que no cumple el esquema del pasaporte es un error, no un pasaporte a medias", async () => {
     fetchMock.mockResolvedValueOnce(ok({ kind: "LOT", lotCode: CASE_LOT }));
     await expect(fetchPassport(CASE_LOT).catch(passportErrorState)).resolves.toEqual({ status: "error" });
