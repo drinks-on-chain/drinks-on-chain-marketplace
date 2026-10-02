@@ -101,6 +101,16 @@ export const es = {
     another: "Verificar otro código",
     anotherTitle: "¿Tienes otra botella?",
 
+    // Descripción de la página de un lote (metadatos y tarjeta al compartir).
+    meta: {
+      intro: (type: string, vintage: number, winery: string, region: string) =>
+        `${type} de la añada ${vintage} de ${winery} (${region}).`,
+      origin: (parcels: string[]) => `Origen: ${parcels.join(", ")}.`,
+      bottles: (count: number) => `${new Intl.NumberFormat("es-BO").format(count)} botellas.`,
+      dossierClosed: "Expediente cerrado, con su huella.",
+      lot: (lotCode: string) => `Origen, elaboración y laboratorio del lote ${lotCode}.`,
+    },
+
     // Qué identifica el código (§12.5, punto 2).
     bottleSerial: (serial: string, total: string) => `Botella n.º ${serial} de ${total}`,
     bottleCode: "Código de la botella",
