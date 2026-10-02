@@ -1,11 +1,29 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { es } from "@/lib/i18n/es";
+import { links } from "@/lib/links";
+import { PAPER } from "@/lib/theme";
 import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Drinks on Chain", template: "%s · Drinks on Chain" },
-  description: "Plantilla de aplicación del ecosistema Drinks on Chain.",
+  metadataBase: links.app ? new URL(links.app) : undefined,
+  title: { default: es.app.title, template: `%s · ${es.app.name}` },
+  description: es.app.description,
+  applicationName: es.app.name,
+  // PWA: el manifest sale de `src/app/manifest.ts`; en iOS, "Añadir a inicio" usa estos datos.
+  appleWebApp: { capable: true, title: es.app.name, statusBarStyle: "default" },
+  formatDetection: { telephone: false },
+  // Portada provisional y visor sin datos: nada se indexa hasta la fase 2 (catálogo y pasaporte).
   robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: PAPER,
+  colorScheme: "light",
+  width: "device-width",
+  initialScale: 1,
+  // `safe-area` de las pestañas inferiores del StoreShell en teléfonos con muesca.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
