@@ -6,6 +6,9 @@ import { env } from "@/lib/env";
 /** `base` + `path`, sin barras duplicadas; `null` si el sitio no está configurado. */
 export const join = (base: string, path = "/") => (base ? `${base.replace(/\/+$/, "")}${path}` : null);
 
+/** Parámetro con el que la página del lote recuerda de qué botella se llegó. */
+export const FROM_BOTTLE_PARAM = "desde";
+
 /** Rutas internas del Marketplace. */
 export const routes = {
   home: "/",
@@ -13,14 +16,25 @@ export const routes = {
   verify: "/b",
   /** Visor público de un código de botella o de lote (canónico, sin guion en el de botella). */
   passport: (code: string) => `/b/${encodeURIComponent(code)}`,
+  /** Pasaporte del lote al que se llega desde una botella (para poder volver a ella). */
+  lotFromBottle: (lotCode: string, bottleCode: string) =>
+    `/b/${encodeURIComponent(lotCode)}?${FROM_BOTTLE_PARAM}=${encodeURIComponent(bottleCode)}`,
   catalog: "/catalogo",
+  collection: (slug: string) => `/catalogo/${encodeURIComponent(slug)}`,
+  wineries: "/bodegas",
+  winery: (slug: string) => `/bodegas/${encodeURIComponent(slug)}`,
 } as const;
+
+/** Origen con el que la landing registra las inscripciones que llegan desde aquí. */
+export const WAITLIST_SOURCE = "marketplace";
 
 /** Enlaces con los hosts de un entorno concreto (inyectable en las pruebas). */
 export function buildLinks(urls: { landing: string; bodegas: string; app: string }) {
   return {
     /** Landing principal; `null` si no está configurada (el enlace no se muestra). */
     landing: join(urls.landing),
+    /** Lista de espera de la landing ("Avísame"); `null` si la landing no está configurada. */
+    waitlist: join(urls.landing, `/lista-de-espera?src=${WAITLIST_SOURCE}`),
     /** Sitio de las bodegas; `null` si no está configurado. */
     bodegas: join(urls.bodegas),
     /** Origen público del Marketplace (`metadataBase`); `null` si no está configurado. */

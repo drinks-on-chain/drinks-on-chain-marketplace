@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { parseCode, type MalformedCode, type ValidCode } from "@/lib/codes/parse";
 import type { PassportState } from "@/lib/passport/types";
+import { bottlePassport, lotPassport } from "@/test/passports";
 import { MalformedCodeView, PassportView } from "./passport-view";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -12,7 +14,12 @@ const lot = parseCode("CVJ-2026-SINGANI-004") as ValidCode;
 
 function renderView(state: PassportState, code: ValidCode = bottle, retrying = false) {
   const retry = vi.fn();
-  render(<PassportView code={code} query={{ state, retry, retrying }} />);
+  // El pasaporte encontrado conecta la comprobación y la descarga: necesita el cliente de consultas.
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PassportView code={code} query={{ state, retry, retrying }} />
+    </QueryClientProvider>,
+  );
   return { retry };
 }
 
@@ -83,13 +90,13 @@ describe("PassportView", () => {
     expect(screen.getByRole("button", { name: /Reintentar/ })).toBeDisabled();
   });
 
-  it("encontrado: reconoce el código sin leer nada del pasaporte (se pinta en la fase 2)", () => {
-    renderView({ status: "found", passport: { cualquier: "cosa" } });
-    expect(screen.getByRole("heading", { name: "Código reconocido" })).toBeInTheDocument();
-    expect(screen.getByText(/Este código identifica una botella\./)).toBeInTheDocument();
+  it("encontrado: pinta el pasaporte, con el nombre del lote como título", () => {
+    renderView({ status: "found", passport: bottlePassport() });
+    expect(screen.getByRole("heading", { level: 1, name: "Singani Gran Reserva 2026" })).toBeInTheDocument();
+    expect(screen.getByText("Botella n.º 1 de 2.950")).toBeInTheDocument();
     cleanup();
-    renderView({ status: "found", passport: null }, lot);
-    expect(screen.getByText(/Esta etiqueta identifica el lote\./)).toBeInTheDocument();
+    renderView({ status: "found", passport: lotPassport() }, lot);
+    expect(screen.getByText("Esta etiqueta identifica el lote")).toBeInTheDocument();
   });
 });
 

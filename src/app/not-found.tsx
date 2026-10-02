@@ -6,13 +6,13 @@ import { StoreFrame } from "@/components/store-frame";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
 
-export const metadata: Metadata = { title: es.errors.notFoundTitle };
+export const metadata: Metadata = { title: es.errors.notFoundTitle, robots: { index: false, follow: false } };
 
 export default function NotFound() {
   return (
     <StoreFrame footer={<SiteFooter />}>
       <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
-        <h1 className="sr-only">{es.errors.notFoundTitle}</h1>
+        <h1 className="sr-only">{es.app.name}</h1>
         <EmptyState
           title={es.errors.notFoundTitle}
           description={es.errors.notFoundBody}

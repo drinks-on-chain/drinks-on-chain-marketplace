@@ -1,6 +1,8 @@
 import { api } from "@/lib/api/client";
 import { ApiError, NetworkError } from "@/lib/api/errors";
-import type { Passport, PassportState } from "./types";
+import { apiText } from "@/lib/api/text";
+import { passportSchema } from "./schema";
+import type { LotPassport, Passport, PassportState } from "./types";
 
 // Pasaporte público (contrato de la Ola 2 §12.1 y §12.4): sin sesión, con límite de peticiones
 // por la IP real del visitante (la firma `src/proxy.ts`).
@@ -10,14 +12,22 @@ export const PUB_CODE_NOT_FOUND = "PUB_CODE_NOT_FOUND";
 export const PUB_CODE_MALFORMED = "PUB_CODE_MALFORMED";
 export const PUB_TOO_MANY_LOOKUPS = "PUB_TOO_MANY_LOOKUPS";
 
-/**
- * `GET /v1/public/passports/{code}`: resuelve un código canónico de botella o de lote.
- *
- * FASE 2: añadir `schema` con el esquema zod del dominio `public` de `@drinks-on-chain/mocks`
- * para que `data` llegue validado y tipado (hoy se devuelve tal cual, como `unknown`).
- */
+/** `GET /v1/public/passports/{code}`: resuelve un código canónico de botella o de lote. */
 export function fetchPassport(code: string, signal?: AbortSignal): Promise<Passport> {
-  return api<Passport>(`/v1/public/passports/${encodeURIComponent(code)}`, { auth: false, signal });
+  return api(`/v1/public/passports/${encodeURIComponent(code)}`, {
+    auth: false,
+    signal,
+    schema: passportSchema,
+  });
+}
+
+/**
+ * Bytes canónicos del expediente cerrado (`dossier.canonicalUrl`, §12.1): el texto exacto sobre
+ * el que se calculó la huella. `null` si el expediente sigue abierto.
+ */
+export function fetchCanonicalDossier(lot: LotPassport, signal?: AbortSignal): Promise<string> | null {
+  const path = lot.dossier.canonicalUrl;
+  return path ? apiText(path, { signal }) : null;
 }
 
 /** Traduce un fallo de la consulta al estado que pinta el visor. */

@@ -1,0 +1,149 @@
+import { expect, test, type Page } from "@playwright/test";
+import { CASE, NO_PRICE_COLLECTION, expectNoHorizontalScroll, shellNav, trackErrors } from "./support";
+
+// 2A · Catálogo sin cuenta y páginas de bodega, contra los mocks.
+// [BORRADOR §17.1] `/v1/public/collections` es un borrador: estas pruebas cambian con él.
+
+const cards = (page: Page) => page.getByRole("main").getByRole("article");
+const count = (page: Page) => page.getByRole("status").filter({ hasText: /colecci(ón|ones)$/ });
+const pill = (page: Page, group: string, name: string) =>
+  page.getByRole("group", { name: group }).getByRole("button", { name, exact: true });
+
+test("catálogo: lista, filtros en la URL y búsqueda", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto("/");
+  await shellNav(page).getByRole("link", { name: "Catálogo" }).click();
+  await expect(page).toHaveURL(/\/catalogo$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Catálogo" })).toBeVisible();
+  await expect(count(page)).toHaveText("7 colecciones");
+  await expect(cards(page)).toHaveCount(7);
+  await expectNoHorizontalScroll(page);
+
+  // Tipo.
+  await pill(page, "Tipo", "Vino").click();
+  await expect(page).toHaveURL(/\?tipo=vino$/);
+  await expect(count(page)).toHaveText("2 colecciones");
+  await expect(pill(page, "Tipo", "Vino")).toHaveAttribute("aria-pressed", "true");
+  for (const card of await cards(page).all()) await expect(card).toContainText("Vino ·");
+
+  // Estado, sumado al tipo.
+  await pill(page, "Estado", "Agotado").click();
+  await expect(page).toHaveURL(/tipo=vino&estado=agotado$/);
+  await expect(count(page)).toHaveText("1 colección");
+  await expect(cards(page).first()).toContainText("Agotado");
+
+  // Los filtros sobreviven a la recarga (viven en la URL).
+  await page.reload();
+  await expect(count(page)).toHaveText("1 colección");
+  await expect(pill(page, "Estado", "Agotado")).toHaveAttribute("aria-pressed", "true");
+
+  // Quitar filtros.
+  await page.getByRole("button", { name: "Quitar filtros" }).click();
+  await expect(page).toHaveURL(/\/catalogo$/);
+  await expect(count(page)).toHaveText("7 colecciones");
+
+  // Búsqueda por nombre.
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("gran reserva");
+  await page.getByRole("searchbox", { name: "Buscar" }).press("Enter");
+  await expect(page).toHaveURL(/\?q=gran\+reserva$/);
+  await expect(count(page)).toHaveText("1 colección");
+  await expect(cards(page).first().getByRole("link", { name: CASE.name })).toBeVisible();
+
+  // Nada coincide: estado vacío con salida.
+  await page.getByRole("searchbox", { name: "Buscar" }).fill("no existe tal vino");
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Ninguna colección coincide" })).toBeVisible();
+  await page.getByRole("main").getByRole("button", { name: "Quitar filtros" }).last().click();
+  await expect(count(page)).toHaveText("7 colecciones");
+  expect(errors).toEqual([]);
+});
+
+test("catálogo: filtro por bodega", async ({ page }) => {
+  await page.goto("/catalogo");
+  await expect(count(page)).toHaveText("7 colecciones");
+  await page.getByRole("combobox", { name: "Bodega" }).selectOption({ label: "Bodega Altos de Calamuchita" });
+  await expect(page).toHaveURL(/\?bodega=altos-de-calamuchita$/);
+  await expect(count(page)).toHaveText("1 colección");
+  await expect(cards(page).first()).toContainText("Bodega Altos de Calamuchita");
+});
+
+test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin compra)", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto("/catalogo");
+  await cards(page).getByRole("link", { name: CASE.name }).click();
+  await expect(page).toHaveURL(new RegExp(`/catalogo/${CASE.collectionSlug}$`));
+
+  await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
+  await expect(page.getByText("Singani · Añada 2026")).toBeVisible();
+  await expect(page.getByText(/^Bs\s185$/)).toBeVisible();
+  await expect(page.getByText("A la venta", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Quedan [\d.]+ de 2\.950 botellas$/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Notas de cata" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Maridaje" })).toBeVisible();
+
+  // Sin compra ni cuenta: la acción lleva a la lista de espera de la landing.
+  await expect(page.getByRole("link", { name: "Avísame" })).toHaveAttribute(
+    "href",
+    "https://landing.ejemplo.test/lista-de-espera?src=marketplace",
+  );
+  await expect(page.getByRole("button", { name: /comprar|adquirir|pagar/i })).toHaveCount(0);
+
+  // Línea de tiempo del lote y paso a su pasaporte.
+  const journey = page.getByRole("region", { name: "El lote, paso a paso" });
+  await expect(journey.getByRole("listitem").first()).toContainText("Uva recibida y pesada en la bodega");
+  await expectNoHorizontalScroll(page);
+  await journey.getByRole("link", { name: "Ver el pasaporte del lote" }).click();
+  await expect(page).toHaveURL(new RegExp(`/b/${CASE.lotCode}$`));
+  await expect(page.getByText("Esta etiqueta identifica el lote")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("ficha en preventa sin precio: «Precio por anunciar»", async ({ page }) => {
+  await page.goto(`/catalogo/${NO_PRICE_COLLECTION.slug}`);
+  await expect(page.getByRole("heading", { level: 1, name: NO_PRICE_COLLECTION.name })).toBeVisible();
+  await expect(page.getByText("Precio por anunciar")).toBeVisible();
+  await expect(page.getByText("Preventa", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Lista hacia el /)).toBeVisible();
+  await expect(page.getByText("El pasaporte del lote se publica cuando se embotella.")).toBeVisible();
+  await expect(page.getByText(/^Bs\s\d/)).toHaveCount(0);
+});
+
+test("una colección que no existe: aviso y vuelta al catálogo", async ({ page }) => {
+  await page.goto("/catalogo/no-existe");
+  await expect(page.getByRole("heading", { name: "No encontramos esta colección" })).toBeVisible();
+  await page.getByRole("link", { name: "Volver al catálogo" }).click();
+  await expect(page).toHaveURL(/\/catalogo$/);
+});
+
+test("bodegas: directorio, página de bodega y sus colecciones", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto("/");
+  await shellNav(page).getByRole("link", { name: "Bodegas" }).click();
+  await expect(page).toHaveURL(/\/bodegas$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Bodegas" })).toBeVisible();
+  await expect(cards(page)).toHaveCount(2);
+  await expectNoHorizontalScroll(page);
+
+  await page.getByRole("link", { name: CASE.winery }).click();
+  await expect(page).toHaveURL(new RegExp(`/bodegas/${CASE.winerySlug}$`));
+  await expect(page.getByRole("heading", { level: 1, name: CASE.winery })).toBeVisible();
+  await expect(page.getByText("Destilería", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Historia" })).toContainText("cañón de Cinti");
+  await expect(page.getByRole("link", { name: `Sitio web de ${CASE.winery}` })).toHaveAttribute(
+    "href",
+    "https://cintiviejo.test",
+  );
+
+  const collections = page.getByRole("region", { name: "Colecciones de esta bodega" });
+  await expect(collections.getByRole("article")).toHaveCount(6);
+  await expect(collections.getByRole("link", { name: CASE.name })).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  expect(errors).toEqual([]);
+});
+
+test("una bodega que no existe: aviso y vuelta al directorio", async ({ page }) => {
+  await page.goto("/bodegas/no-existe");
+  await expect(page.getByRole("heading", { name: "No encontramos esta bodega" })).toBeVisible();
+  await page.getByRole("link", { name: "Ver todas las bodegas" }).click();
+  await expect(page).toHaveURL(/\/bodegas$/);
+});

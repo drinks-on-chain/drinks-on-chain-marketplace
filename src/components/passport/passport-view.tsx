@@ -1,16 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BadgeCheck, Hourglass, SearchX, WifiOff } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Hourglass, SearchX, WifiOff } from "lucide-react";
 import { Button, EmptyState, ErrorState, Skeleton } from "@drinks-on-chain/ui";
 import { waitText } from "@/lib/api/errors";
 import type { MalformedCode, ValidCode } from "@/lib/codes/parse";
 import { es } from "@/lib/i18n/es";
-import { usePassport } from "@/lib/passport/hooks";
-import type { PassportQuery } from "@/lib/passport/types";
-import { CodeEntryForm } from "./code-entry-form";
+import { downloadCanonicalDossier, useBottleProof, usePassport } from "@/lib/passport/hooks";
+import { lotOf, type Passport, type PassportQuery } from "@/lib/passport/types";
+import { CodeEntryForm } from "../code-entry-form";
+import { PassportDocument } from "./passport-document";
 
-/** Columna editorial del visor: rótulo pequeño, hilo y el código como título. */
+/** Columna editorial del visor cuando no hay pasaporte que pintar: el código como título. */
 function PassportColumn({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
     <article className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
@@ -52,32 +54,44 @@ function PassportSkeleton() {
 }
 
 /**
+ * Pasaporte encontrado: lo pinta `PassportDocument`, y aquí se conectan las dos acciones que
+ * necesitan red: comprobar la botella contra el expediente y descargarlo.
+ */
+function PassportFound({ passport, fromBottle }: { passport: Passport; fromBottle: string | null }) {
+  const proof = useBottleProof(passport);
+  const download = useMutation({ mutationFn: () => downloadCanonicalDossier(lotOf(passport)) });
+  return (
+    <PassportDocument
+      passport={passport}
+      fromBottle={fromBottle}
+      proof={proof}
+      download={{ onDownload: () => download.mutate(), pending: download.isPending, failed: download.isError }}
+    />
+  );
+}
+
+export type PassportViewProps = {
+  code: ValidCode;
+  query: PassportQuery;
+  /** Código (canónico) de la botella desde la que se abrió el lote, para poder volver a ella. */
+  fromBottle?: string | null;
+};
+
+/**
  * Estados del visor para un código bien formado. Recibe la consulta ya resuelta
  * (`PassportQuery`), así se prueba sin red.
- *
- * FASE 2: el estado `found` pinta aquí el pasaporte (§12.5 del contrato: botella o lote,
- * cabecera, origen, `JourneyTimeline`, laboratorio, reglas y expediente).
  */
-export function PassportView({ code, query }: { code: ValidCode; query: PassportQuery }) {
+export function PassportView({ code, query, fromBottle = null }: PassportViewProps) {
   const { state, retry, retrying } = query;
+  if (state.status === "found") return <PassportFound passport={state.passport} fromBottle={fromBottle} />;
+
   const isBottle = code.kind === "bottle";
   const another = <AnotherCode title={es.passport.anotherTitle} form={<CodeEntryForm key={code.code} />} />;
 
   return (
     <PassportColumn eyebrow={isBottle ? es.passport.bottleEyebrow : es.passport.lotEyebrow} title={code.formatted}>
-      {state.status === "loading" ? <PassportSkeleton /> : null}
-
-      {state.status === "found" ? (
-        <>
-          <EmptyState
-            role="status"
-            icon={<BadgeCheck aria-hidden />}
-            title={es.passport.foundTitle}
-            description={`${isBottle ? es.passport.foundBottle : es.passport.foundLot} ${es.passport.foundBody}`}
-          />
-          {another}
-        </>
-      ) : null}
+      {/* Un código que no se pudo mostrar no debe indexarse (la página del lote sí puede). */}
+      {state.status === "loading" ? <PassportSkeleton /> : <meta name="robots" content="noindex" />}
 
       {state.status === "not-found" ? (
         <>
@@ -141,9 +155,9 @@ export function PassportView({ code, query }: { code: ValidCode; query: Passport
 }
 
 /** Visor de un código bien formado: consulta el pasaporte y pinta su estado. */
-export function PassportViewer({ code }: { code: ValidCode }) {
+export function PassportViewer({ code, fromBottle = null }: { code: ValidCode; fromBottle?: string | null }) {
   const query = usePassport(code.code);
-  return <PassportView code={code} query={query} />;
+  return <PassportView code={code} query={query} fromBottle={fromBottle} />;
 }
 
 /** Visor de un código mal escrito (no se consulta nada): formulario con el motivo y la sugerencia. */

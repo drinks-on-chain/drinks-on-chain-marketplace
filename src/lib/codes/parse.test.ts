@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { isLotCodeShape, normalizeLotCode } from "./lot-code";
 import { parseCode } from "./parse";
 
 describe("parseCode · código de botella", () => {
@@ -38,14 +37,13 @@ describe("parseCode · código de lote", () => {
   });
 
   it("no cambia las letras del lote (la I y la O de SINGANI son suyas)", () => {
-    expect(normalizeLotCode("oli-2026-singani-010")).toBe("OLI-2026-SINGANI-010");
-    expect(isLotCodeShape("OLI-2026-SINGANI-010")).toBe(true);
+    expect(parseCode("oli-2026-singani-010")).toMatchObject({ kind: "lot", code: "OLI-2026-SINGANI-010" });
   });
 
   it("sin la forma completa no es un lote", () => {
-    expect(isLotCodeShape("CVJ-2026-SINGANI")).toBe(false);
-    expect(isLotCodeShape("CVJ-26-SINGANI-004")).toBe(false);
-    expect(isLotCodeShape("CVJ2026SINGANI004")).toBe(false);
+    for (const input of ["CVJ-2026-SINGANI", "CVJ-26-SINGANI-004", "CVJ2026SINGANI004", "CVJ-2026-RON-004"]) {
+      expect(parseCode(input), input).toMatchObject({ kind: "malformed" });
+    }
     expect(parseCode("CVJ-2026-SINGANI")).toMatchObject({ kind: "malformed", reason: "too-long" });
   });
 });

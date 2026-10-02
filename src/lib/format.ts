@@ -27,6 +27,22 @@ export const fmtDateTime = (iso: string) =>
     .format(new Date(iso))
     .replace(".", "");
 
+/**
+ * Precio en bolivianos a partir del importe en céntimos: "Bs 185" o "Bs 185,50" (sin decimales
+ * cuando el importe es entero).
+ */
+export const fmtBob = (amountMinor: number) =>
+  new Intl.NumberFormat(LOCALE, {
+    style: "currency",
+    currency: "BOB",
+    minimumFractionDigits: amountMinor % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amountMinor / 100);
+
+/** Cifra con los decimales que traiga (hasta `max`), sin ceros de relleno: 40 → "40", 46.5 → "46,5". */
+export const fmtDecimal = (n: number, max = 2) =>
+  new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 0, maximumFractionDigits: max }).format(n);
+
 /** "Faltan 18 días" / "Falta 1 día" / "Liberado". */
 export const fmtDaysLeft = (days: number) =>
   days <= 0 ? "Liberado" : days === 1 ? "Falta 1 día" : `Faltan ${fmtNumber(days)} días`;

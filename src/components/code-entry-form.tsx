@@ -2,12 +2,13 @@
 
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Input } from "@drinks-on-chain/ui";
-import { formatBottleCode } from "@/lib/codes/bottle-code";
+import { Button, Field } from "@drinks-on-chain/ui";
+import { formatBottleCode } from "@drinks-on-chain/mocks";
 import { malformedMessage } from "@/lib/codes/messages";
 import { parseCode, type MalformedCode, type ValidCode } from "@/lib/codes/parse";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
+import { CodeInput } from "./store/code-input";
 
 export type CodeEntryFormProps = {
   /** Texto con el que arranca el campo (p. ej. el código mal escrito de la URL). */
@@ -64,22 +65,14 @@ export function CodeEntryForm({ initialValue = "", initialProblem = null, classN
           // `role="alert"`: el error se anuncia al aparecer aunque el foco ya esté en el campo.
           error={problem ? <span role="alert">{malformedMessage(problem)}</span> : undefined}
         >
-          <Input
+          <CodeInput
             ref={inputRef}
             name="code"
-            size="lg"
             value={value}
             onChange={(event) => {
               setValue(event.target.value);
               if (problem) setProblem(null);
             }}
-            autoComplete="off"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="search"
-            maxLength={120}
-            className="tracking-[0.08em] uppercase placeholder:tracking-normal placeholder:normal-case"
           />
         </Field>
 
