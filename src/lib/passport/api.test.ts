@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, ContractError, NetworkError } from "@/lib/api/errors";
 import { resetSessionForTests } from "@/lib/api/session";
 import { fetchPassport, passportErrorState } from "./api";
+import { CASE_LOT, bottlePassport, lotPassport } from "@/test/passports";
 import { toPassportState } from "./hooks";
 
 const ok = (data: unknown) => new Response(JSON.stringify({ success: true, statusCode: 200, data }), { status: 200 });
@@ -25,22 +26,27 @@ describe("fetchPassport", () => {
   });
 
   it("pide el pasaporte al propio origen, sin sesión y como Marketplace", async () => {
-    fetchMock.mockResolvedValueOnce(ok({ kind: "BOTTLE" }));
-    await expect(fetchPassport("K7M2Q9XM")).resolves.toEqual({ kind: "BOTTLE" });
+    fetchMock.mockResolvedValueOnce(ok(bottlePassport()));
+    await expect(fetchPassport("664TWFDA")).resolves.toMatchObject({ kind: "BOTTLE", bottle: { serial: 1 } });
 
     // Una sola petición: sin sesión no se intenta renovar nada antes.
     expect(calls()).toHaveLength(1);
     const [call] = calls();
-    expect(call!.url).toBe("/api/v1/public/passports/K7M2Q9XM");
+    expect(call!.url).toBe("/api/v1/public/passports/664TWFDA");
     const headers = call!.init.headers as Record<string, string>;
     expect(headers.Authorization).toBeUndefined();
     expect(headers["X-Client-App"]).toBe("MARKETPLACE");
   });
 
   it("el código de lote viaja tal cual en la ruta", async () => {
-    fetchMock.mockResolvedValueOnce(ok({ kind: "LOT" }));
-    await fetchPassport("CVJ-2026-SINGANI-004");
-    expect(calls()[0]!.url).toBe("/api/v1/public/passports/CVJ-2026-SINGANI-004");
+    fetchMock.mockResolvedValueOnce(ok(lotPassport()));
+    await expect(fetchPassport(CASE_LOT)).resolves.toMatchObject({ kind: "LOT", lotCode: CASE_LOT });
+    expect(calls()[0]!.url).toBe(`/api/v1/public/passports/${CASE_LOT}`);
+  });
+
+  it("una respuesta que no cumple el esquema del pasaporte es un error, no un pasaporte a medias", async () => {
+    fetchMock.mockResolvedValueOnce(ok({ kind: "LOT", lotCode: CASE_LOT }));
+    await expect(fetchPassport(CASE_LOT).catch(passportErrorState)).resolves.toEqual({ status: "error" });
   });
 
   it("los errores del contrato llegan como estados del visor", async () => {
@@ -97,11 +103,9 @@ describe("passportErrorState", () => {
 
 describe("toPassportState", () => {
   it("pendiente: cargando; con datos: encontrado; con error: su estado", () => {
+    const passport = lotPassport();
     expect(toPassportState({ isPending: true, error: null, data: undefined })).toEqual({ status: "loading" });
-    expect(toPassportState({ isPending: false, error: null, data: { kind: "LOT" } })).toEqual({
-      status: "found",
-      passport: { kind: "LOT" },
-    });
+    expect(toPassportState({ isPending: false, error: null, data: passport })).toEqual({ status: "found", passport });
     expect(
       toPassportState({
         isPending: false,
