@@ -60,7 +60,7 @@ Códigos para probar con los mocks: la botella `664T-WFDA` (n.º 1 del «Singani
 Las pantallas no cambian; lo que cambia es lo que el backend ya publica:
 
 - **Bodegas** (`/v1/public/wineries`): funciona hoy contra el backend de desarrollo.
-- **Pasaporte** (`/v1/public/passports/{code}`): el backend aún responde 501; el visor muestra "No pudimos consultar el código" con reintento. Cuando lo implemente, no hay nada que tocar aquí salvo que cambie el esquema (la respuesta se valida con zod: si no cumple, es un error, no un pasaporte a medias).
+- **Pasaporte** (`/v1/public/passports/{code}`): funciona contra el backend de desarrollo (comprobado el 02-10-2026 con el lote `CVJ-2026-SINGANI-001`). La respuesta se valida con zod (`src/lib/passport/schema.ts`): si no cumple el contrato es un error ("No pudimos consultar el código"), no un pasaporte a medias. Hay **una tolerancia**: el backend devuelve `fermentation.startDate`/`endDate` como instantes y el contrato las define como fechas; se admiten las dos formas hasta que coincidan.
 - **Catálogo** (`/v1/public/collections`): no existe en el backend (404). La portada y `/catalogo` dicen "próximamente" y la página de bodega no enseña colecciones; no se muestra ningún error.
 
 ## Visor `/b/{código}` (2E)

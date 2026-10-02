@@ -70,7 +70,8 @@ Contra `@drinks-on-chain/mocks` 0.5.0-rc.1 (dominio `public` y borrador del cat�
 - [x] Solo datos registrados: `null` y `NOT_RECORDED` se escriben "No registrado"; sin reseñas, precio ni NFT · 2026-10-02
 - [x] SEO: la botella nunca se indexa; el lote, la bodega, el catálogo y la portada sí (salvo con `NEXT_PUBLIC_MOCKS=1`) · 2026-10-02
 - [ ] Pintar el pasaporte del lote **en el servidor** (hoy los datos se piden en el navegador: el contenido no va en el HTML inicial)
-- [ ] Probar contra el backend de desarrollo cuando deje de responder 501 en `/v1/public/passports` (paso 2.10 de su Etapa 2)
+- [x] Pasaporte de lote contra el backend de desarrollo con `NEXT_PUBLIC_MOCKS=0` (`CVJ-2026-SINGANI-001`), con una tolerancia en el esquema: `fermentation.startDate`/`endDate` llegan como instantes (`src/lib/passport/schema.ts`) · 2026-10-02
+- [ ] Pasaporte de **botella** contra el backend de desarrollo (hace falta un código real de un lote embotellado) y retirar la tolerancia de fechas cuando backend y mocks coincidan
 
 Bodegas:
 
@@ -118,6 +119,7 @@ Por hacer en sus olas:
 
 ## Huecos de `@drinks-on-chain/mocks` 0.5.0-rc.1 (para la rc.2)
 
+- **`fermentation.startDate` y `endDate`**: los mocks (y el contrato) las tipan como fecha `YYYY-MM-DD`; el backend de desarrollo las devuelve como instante (`2025-03-11T14:30:00.000Z`), así que un pasaporte real no pasa `PublicLotPassportSchema`. O cambia el backend o cambia el esquema.
 - **Sin casos de bodega no activa ni de lote retirado** en el dominio público: los avisos solo se prueban con datos construidos a mano. Haría falta un escenario de datos (o fixtures) con `winery.active: false` y con `stage: 'DISCARDED'`.
 - **Sin lotes con D.O. por excepción legal, laboratorio no conforme o incompleto ni registros tardíos** entre los pasaportes de muestra (el escenario `laboratorio-no-conforme` es del ERP y no deja un lote con `lotCode` distinto en `publicFixtures`).
 - **`imageUrl` y `logoUrl` apuntan a `/mocks/uploads/…`, que nadie sirve** (tampoco en la semilla del backend): o se sirve un marcador de posición o deberían llegar `null`. Aquí se tratan como "sin imagen".
