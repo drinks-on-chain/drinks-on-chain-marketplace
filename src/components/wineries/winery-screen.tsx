@@ -6,6 +6,7 @@ import { Button, EmptyState, ErrorState, Skeleton, TextLink } from "@drinks-on-c
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import { isCatalogUnavailable } from "@/lib/catalog/api";
 import { useCollections } from "@/lib/catalog/hooks";
+import { env } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
 import type { WineryProfile } from "@/lib/wineries/api";
@@ -116,7 +117,8 @@ export function WineryScreen({ slug }: { slug: string }) {
     const notFound = winery.error instanceof ApiError && winery.error.isNotFound;
     return (
       <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
-        <meta name="robots" content="noindex" />
+        {/* Lo que no se encontró no se indexa (con mocks ya lo dice el layout: una sola etiqueta). */}
+        {env.mocks ? null : <meta name="robots" content="noindex" />}
         <h1 className="sr-only">{t.title}</h1>
         {notFound ? (
           <EmptyState

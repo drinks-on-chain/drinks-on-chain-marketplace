@@ -41,6 +41,8 @@ export async function generateMetadata({ params }: PageProps<"/b/[code]">): Prom
     return { title: `${es.passport.bottleEyebrow} ${parsed.formatted}`, robots: NOINDEX };
   }
 
+  // Lote sin pasaporte que mostrar (con mocks, saturado, caído…): no se indexa. Si no existe,
+  // `notFound()` responde 404 y Next pone su propio `noindex` (el único de esa página).
   const fallback: Metadata = { title: `${es.passport.lotEyebrow} ${parsed.formatted}`, robots: NOINDEX };
   // Con datos de demostración, o si la URL aún no es la canónica (se va a redirigir), sin más.
   if (env.mocks || parsed.code !== input) return fallback;

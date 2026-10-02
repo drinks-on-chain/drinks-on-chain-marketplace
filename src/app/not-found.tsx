@@ -6,7 +6,8 @@ import { StoreFrame } from "@/components/store-frame";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
 
-export const metadata: Metadata = { title: es.errors.notFoundTitle, robots: { index: false, follow: false } };
+// Sin `robots`: Next ya añade `noindex` a toda página de no encontrado (una sola etiqueta).
+export const metadata: Metadata = { title: es.errors.notFoundTitle };
 
 export default function NotFound() {
   return (
