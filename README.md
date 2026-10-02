@@ -17,7 +17,7 @@ S2 · **Marketplace** del ecosistema **Drinks on Chain** (`app.`): sitio públic
 | `/trace/batch/{lote}` (URL del QR antiguo) → 308 a `/b/{lote}`                                                                                         | `next.config.ts`                                                            |
 | PWA básica: manifest, `theme-color`, iconos provisionales                                                                                              | `src/app/manifest.ts`, `public/icons/`, `scripts/generate-icons.mjs`        |
 | Cliente de API tipado contra `/api/v1/*` del propio origen, con el proxy que firma la IP del visitante                                                 | `src/lib/api/`, `src/proxy.ts`, `src/lib/api-proxy.ts`                      |
-| Datos de prueba `@drinks-on-chain/mocks` 0.5 con MSW en el navegador y panel `/__mocks`                                                                | `src/app/providers.tsx` (`MocksGate`), `src/app/%5F%5Fmocks`                |
+| Datos de prueba `@drinks-on-chain/mocks` 0.5.0-rc.2 con MSW en el navegador y panel `/__mocks`                                                         | `src/app/providers.tsx` (`MocksGate`), `src/app/%5F%5Fmocks`                |
 | Rutas propias y enlaces a los otros sitios (hosts solo por `NEXT_PUBLIC_URL_*`)                                                                        | `src/lib/links.ts`                                                          |
 | Textos en español                                                                                                                                      | `src/lib/i18n/es.ts`                                                        |
 | Vitest + Testing Library (unitarias y de integración contra los handlers de los mocks), Playwright (390 px y 1280 px) con axe, ESLint, Prettier, CI    | `vitest.config.mts`, `playwright.config.ts`, `.github/workflows/ci.yml`     |
@@ -34,7 +34,7 @@ cp .env.example .env.local
 pnpm dev:mocks        # http://localhost:3005 con MSW
 ```
 
-Códigos para probar con los mocks: la botella `664T-WFDA` (n.º 1 del «Singani Gran Reserva 2026», expediente cerrado), `7T6B-ZK39` (código anulado), el lote `CVJ-2026-SINGANI-004` y el vino `CVJ-2026-WINE-003` (sin laboratorio, expediente abierto). Hay más en `publicFixtures.bottleCodes` de `@drinks-on-chain/mocks/fixtures`.
+Códigos para probar con los mocks: la botella `664T-WFDA` (n.º 1 del «Singani Gran Reserva 2026», expediente cerrado), `7T6B-ZK39` (código anulado), el lote `CVJ-2026-SINGANI-004` y el vino `CVJ-2026-WINE-003` (sin laboratorio, expediente abierto). Los lotes de `PASSPORT_CASES` cubren cada aviso: `CUR-2026-SINGANI-001` (bodega suspendida), `CVJ-2025-SINGANI-001` (lote retirado), `ALT-2025-SINGANI-002` (D.O. por excepción y registro tardío) y `ALT-2025-WINE-001` (laboratorio no conforme); con `?mock=pasaporte-saturado` el visor recibe el 429 del límite por minuto. Hay más en `publicFixtures.bottleCodes` de `@drinks-on-chain/mocks/fixtures`.
 
 | Script                                     | Qué hace                                                                                       |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
@@ -60,7 +60,7 @@ Códigos para probar con los mocks: la botella `664T-WFDA` (n.º 1 del «Singani
 Las pantallas no cambian; lo que cambia es lo que el backend ya publica:
 
 - **Bodegas** (`/v1/public/wineries`): funciona hoy contra el backend de desarrollo.
-- **Pasaporte** (`/v1/public/passports/{code}`): funciona contra el backend de desarrollo (comprobado el 02-10-2026 con el lote `CVJ-2026-SINGANI-001`). La respuesta se valida con zod (`src/lib/passport/schema.ts`): si no cumple el contrato es un error ("No pudimos consultar el código"), no un pasaporte a medias. Hay **una tolerancia**: el backend devuelve `fermentation.startDate`/`endDate` como instantes y el contrato las define como fechas; se admiten las dos formas hasta que coincidan.
+- **Pasaporte**: funciona contra el backend de desarrollo, con los esquemas de `@drinks-on-chain/mocks` 0.5.0-rc.2 **sin tolerancias** (comprobado el 02-10-2026 con los lotes `CVJ-2026-SINGANI-002`, `-004` y `-005`: el pasaporte pasa `PublicCodePassportSchema`, el expediente canónico pasa `CanonicalDossierSchema` y su huella coincide). El **lote** se pide en el servidor (ver más abajo); la botella, en el navegador. Una respuesta que no cumple el contrato es un error ("No pudimos consultar el código"), no un pasaporte a medias. Recorrido contra el backend real: `E2E_REAL_API=1 E2E_API_ORIGIN=… pnpm e2e` (`e2e/backend-real.spec.ts`; con `E2E_BOTTLE_CODE` comprueba también una botella).
 - **Catálogo** (`/v1/public/collections`): no existe en el backend (404). La portada y `/catalogo` dicen "próximamente" y la página de bodega no enseña colecciones; no se muestra ningún error.
 
 ## Visor `/b/{código}` (2E)
@@ -76,8 +76,18 @@ Las pantallas no cambian; lo que cambia es lo que el backend ya publica:
   - Cabecera con nombre, tipo, añada y bodega; **expediente** (cerrado con su huella abreviada, o abierto), "Anclaje en la red: pendiente" y **descarga del expediente canónico** (JSON).
   - Origen y Denominación de Origen con las reglas usadas y la excepción legal; elaboración con cada etapa **aplicable** (la que no aplica al producto no aparece); registro del lote con `JourneyTimeline` (el **rol** de quien registró, nunca su nombre; registros tardíos y corregidos); laboratorio con cada parámetro frente a su límite y unidad; reglas de la instantánea; documentos públicos.
   - **Solo datos registrados**: donde el pasaporte trae `null` o `NOT_RECORDED` se escribe "No registrado". No hay reseñas, precio ni NFT.
-- **Comprobación de la botella** (`src/lib/passport/verify.ts`): si el pasaporte trae la prueba Merkle, el navegador descarga el expediente canónico, recalcula su huella SHA-256, recalcula la raíz desde la hoja de la botella (`merkleLeaf` + `merkleRootFromProof` de los mocks) y la compara con la del expediente. Si todo cuadra: "Este código pertenece al expediente cerrado". Si el expediente sigue abierto, se explica que la comprobación llegará al cerrarlo.
-- **SEO**: la página de una botella nunca se indexa; la del lote, la bodega, el catálogo y la portada sí (salvo con `NEXT_PUBLIC_MOCKS=1`). Los datos se piden en el navegador (por el proxy firmado, para que el límite cuente por la IP de quien visita), así que el contenido no va en el HTML inicial: pintarlo en el servidor queda pendiente.
+- **Comprobación de la botella** (`src/lib/passport/verify.ts`): si el pasaporte trae la prueba Merkle (`{ salt, path }`, **sin la raíz**), el navegador descarga el expediente canónico, recalcula su huella (`sha256Hex`), lee la raíz de `bottleCodes.merkleRoot` (`CanonicalDossierSchema`) y comprueba la prueba con `merkleLeaf` y `verifyMerkleProof` de los mocks (el padre es el SHA-256 de los **bytes** de los dos hijos, como en el backend). Si todo cuadra: "Este código pertenece al expediente cerrado". Si el expediente sigue abierto, se explica que la comprobación llegará al cerrarlo.
+- **Rutas que llegan en los datos** (`dossier.canonicalUrl`, `publicAttachments[].url`): se aceptan como ruta (`/v1/…`) o como URL absoluta (cuando el backend defina `API_PUBLIC_URL`) y se piden siempre por el proxy del propio origen (`src/lib/api/paths.ts`).
+
+### El lote se pinta en el servidor
+
+Con backend (`NEXT_PUBLIC_MOCKS` ≠ 1), `/b/{lotCode}` pide el pasaporte **en el servidor** (`src/lib/passport/server.ts`, contrato §12.4):
+
+- **Qué va en el HTML inicial**: el pasaporte entero (cabecera, expediente, origen, elaboración, registro, laboratorio, reglas), legible sin JavaScript. Al hidratar no se vuelve a pedir nada. Los metadatos salen del lote (`src/lib/passport/metadata.ts`): título, descripción, URL canónica, Open Graph y `robots: index, follow`.
+- **IP de quien visita**: el freno a la enumeración y el límite por minuto del backend son por IP real. Cada petición del servidor lleva las cabeceras `X-DOC-Client-IP`, `X-DOC-Proxy-Timestamp` y `X-DOC-Proxy-Signature` con la IP del visitante firmada (`signedClientHeaders` de `src/lib/api-proxy.ts`, lo mismo que hace `src/proxy.ts`). Nunca cuentan todas las visitas contra la IP del servidor.
+- **Caché**: la del `Cache-Control` del backend, 60 s y 3600 s con el lote certificado, **por código de lote**. No es la caché de `fetch` (su clave incluye las cabeceras, y las de la firma cambian en cada visita) sino `unstable_cache`, cuya clave es solo el código; la identidad del visitante viaja aparte, en un `AsyncLocalStorage`, hasta la petición que de verdad sale. Solo se guardan respuestas correctas: un 404, un 429 o un fallo no se guardan, así que el freno de una persona no afecta a otra.
+- **Estados**: un lote que no existe responde **404** de verdad con el aviso del visor (`not-found.tsx`); un 429 o un fallo pintan su estado y "Reintentar" vuelve a pedir la página al servidor.
+- **Botella**: sigue en el navegador (`usePassport`, por el proxy firmado) y nunca se indexa. Con `NEXT_PUBLIC_MOCKS=1` no hay backend en el servidor (MSW vive en el navegador), así que todo va por el camino del navegador y nada se indexa.
 
 ## Catálogo (2A) · la API es un BORRADOR
 
@@ -86,7 +96,8 @@ Las pantallas no cambian; lo que cambia es lo que el backend ya publica:
 - `/catalogo`: lista con filtros **en la URL** (`?tipo=vino|singani&estado=preventa|a-la-venta|agotado&bodega={slug}&q=…&pagina=N`), paginación y estados cargando, vacío, sin coincidencias y error.
 - `/catalogo/[slug]`: ficha con precio que **puede faltar** ("Precio por anunciar", A-32), disponibilidad, estado (`PRESALE`, `ON_SALE`, `SOLD_OUT`), estado y línea de tiempo del lote, y enlace a su pasaporte si ya está embotellado.
 - **Sin compra ni cuenta**: la llamada a la acción es "Avísame", un enlace a la lista de espera de la landing (`links.waitlist`).
-- Las imágenes de demostración (`/mocks/uploads/…`) no existen: se pinta la botella a tinta (`usableImageUrl`).
+- La portada pide las **destacadas** (`?featured=true`) y el catálogo ofrece el **orden** del borrador (`?orden=recientes|precio-menor|precio-mayor|nombre`; por defecto, destacadas primero): nada se ordena en el cliente.
+- Imágenes y logotipos de los datos: `DataImage` los pinta cuando existen y cae a la botella a tinta o al monograma si faltan o fallan. Las rutas `/mocks/uploads/…` solo existen con MSW activo (los handlers las sirven); sin mocks se tratan como "sin imagen" (`usableImageUrl`).
 
 ## PWA
 
