@@ -5,10 +5,10 @@ import { Building2 } from "lucide-react";
 import { Badge, EmptyState, ErrorState, Skeleton, cn, focusRing } from "@drinks-on-chain/ui";
 import { errorMessage } from "@/lib/api/errors";
 import { es } from "@/lib/i18n/es";
-import { usableImageUrl } from "@/lib/images";
 import { routes } from "@/lib/links";
 import type { WineryProfile } from "@/lib/wineries/api";
 import { useWineries } from "@/lib/wineries/hooks";
+import { DataImage } from "../store/data-image";
 
 // Directorio de bodegas activas (`GET /v1/public/wineries`, real en el backend).
 
@@ -16,7 +16,6 @@ const t = es.wineries;
 
 /** Logotipo de la bodega o, si no hay, su inicial en un sello. */
 export function WineryMark({ winery, className }: { winery: WineryProfile; className?: string }) {
-  const logo = usableImageUrl(winery.logoUrl);
   return (
     <span
       aria-hidden="true"
@@ -25,12 +24,11 @@ export function WineryMark({ winery, className }: { winery: WineryProfile; class
         className,
       )}
     >
-      {logo ? (
-        // eslint-disable-next-line @next/next/no-img-element -- logotipo de un origen que no se conoce al construir
-        <img src={logo} alt="" className="size-full object-contain" />
-      ) : (
-        winery.tradeName.replace(/^(Bodega|Destilería)\s+/i, "").charAt(0)
-      )}
+      <DataImage
+        src={winery.logoUrl}
+        className="size-full object-contain"
+        fallback={winery.tradeName.replace(/^(Bodega|Destilería)\s+/i, "").charAt(0)}
+      />
     </span>
   );
 }

@@ -56,8 +56,9 @@ describe("BottleCard", () => {
     expect(card).toHaveTextContent("Destilería Cinti Viejo");
     expect(card).toHaveTextContent("A la venta");
     expect(nbsp(card.textContent ?? "")).toContain("Bs 185");
-    // Las imágenes de demostración no existen: se pinta la ilustración, no una petición rota.
+    // Sin MSW (como aquí) las imágenes de demostración no existen: se pinta la ilustración.
     expect(card.querySelector("img")).toBeNull();
+    expect(card.querySelector("svg")).not.toBeNull();
   });
 
   it("sin precio: «Precio por anunciar»", () => {
@@ -159,7 +160,9 @@ describe("filtros del catálogo en la URL", () => {
 
 describe("usableImageUrl", () => {
   it("descarta las rutas de demostración y lo que no es http(s) ni del propio origen", () => {
-    expect(usableImageUrl("/mocks/uploads/collections/x.jpg")).toBeNull();
+    // Las rutas de demostración solo existen con MSW activo (los handlers las sirven).
+    expect(usableImageUrl("/mocks/uploads/collections/x.jpg", false)).toBeNull();
+    expect(usableImageUrl("/mocks/uploads/collections/x.jpg", true)).toBe("/mocks/uploads/collections/x.jpg");
     expect(usableImageUrl(null)).toBeNull();
     expect(usableImageUrl("")).toBeNull();
     expect(usableImageUrl("javascript:alert(1)")).toBeNull();
