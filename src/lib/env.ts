@@ -2,11 +2,16 @@ import { z } from "zod";
 
 // Variables públicas. Next las inyecta en tiempo de build, así que cada una se lee
 // por su nombre literal (no con process.env[clave]).
+const publicUrl = z.string().url().or(z.literal(""));
+
 const schema = z.object({
   mocks: z.boolean(),
-  urlLanding: z.string().url().or(z.literal("")),
-  urlBodegas: z.string().url().or(z.literal("")),
-  urlApp: z.string().url().or(z.literal("")),
+  /** Landing principal (dominio raíz). */
+  urlLanding: publicUrl,
+  /** Sitio de las bodegas (`bodegas.`). */
+  urlBodegas: publicUrl,
+  /** Origen público del propio Marketplace (`app.`): URL canónicas y la del QR. */
+  urlApp: publicUrl,
 });
 
 export const env = schema.parse({
