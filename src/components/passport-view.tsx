@@ -17,7 +17,7 @@ function PassportColumn({ eyebrow, title, children }: { eyebrow: string; title: 
       <header className="mb-8 text-center md:mb-10">
         <p className="m-0 font-display text-sm tracking-[0.3em] text-fg-muted uppercase">{eyebrow}</p>
         <span aria-hidden="true" className="mx-auto my-4 block h-8 w-px bg-rule" />
-        <h1 className="m-0 font-display text-3xl leading-tight font-medium tracking-[0.08em] break-words text-accent-text md:text-4xl">
+        <h1 className="m-0 font-display text-3xl leading-tight font-medium tracking-[0.08em] break-words text-accent-text lining-nums md:text-4xl">
           {title}
         </h1>
       </header>

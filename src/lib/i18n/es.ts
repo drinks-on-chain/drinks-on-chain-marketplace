@@ -28,7 +28,6 @@ export const es = {
     catalog: "Catálogo",
   },
   footer: {
-    label: "Pie de página",
     landing: "Conoce Drinks on Chain",
     wineries: "Bodegas de la red",
     legal: "Vinos y singanis de altura · Tarija y Cinti, Bolivia",

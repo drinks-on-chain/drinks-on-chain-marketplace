@@ -40,7 +40,7 @@ export default function HomePage() {
           <Badge>{es.common.soon}</Badge>
         </div>
         <p className="mt-2 mb-0 max-w-[52ch] text-lg leading-editorial text-fg-muted">{es.home.catalogBody}</p>
-        <TextLink asChild className="mt-3 inline-flex min-h-11 items-center text-lg">
+        <TextLink asChild variant="inline" className="mt-3 inline-flex min-h-11 items-center text-lg">
           <Link href={routes.catalog}>{es.home.catalogLink}</Link>
         </TextLink>
       </section>

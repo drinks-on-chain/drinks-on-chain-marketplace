@@ -1,4 +1,4 @@
-import { TextLink, Wordmark } from "@drinks-on-chain/ui";
+import { TextLink } from "@drinks-on-chain/ui";
 import { es } from "@/lib/i18n/es";
 import { links } from "@/lib/links";
 
@@ -9,13 +9,9 @@ export function SiteFooter() {
   if (links.bodegas) external.push({ href: links.bodegas, label: es.footer.wineries });
 
   return (
-    <footer
-      aria-label={es.footer.label}
-      className="mt-12 border-t border-border px-5 py-10 text-center md:mt-20 md:px-8"
-    >
-      <Wordmark size="sm" />
+    <footer className="mt-12 border-t border-border px-5 py-8 text-center md:mt-20 md:px-8">
       {external.length > 0 ? (
-        <ul className="m-0 mt-5 flex list-none flex-wrap justify-center gap-x-8 gap-y-1 p-0">
+        <ul className="m-0 flex list-none flex-wrap justify-center gap-x-8 gap-y-1 p-0">
           {external.map((item) => (
             <li key={item.href}>
               <TextLink href={item.href} className="inline-flex min-h-11 items-center text-md">
@@ -25,7 +21,7 @@ export function SiteFooter() {
           ))}
         </ul>
       ) : null}
-      <p className="m-0 mt-5 font-text text-sm text-fg-muted italic">{es.footer.legal}</p>
+      <p className="m-0 mt-3 font-text text-sm text-fg-muted italic">{es.footer.legal}</p>
     </footer>
   );
 }

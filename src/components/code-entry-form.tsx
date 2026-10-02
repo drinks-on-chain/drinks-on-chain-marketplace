@@ -90,7 +90,7 @@ export function CodeEntryForm({ initialValue = "", initialProblem = null, classN
               type="button"
               variant="secondary"
               size="lg"
-              className="tabular tracking-[0.08em]"
+              className="tabular"
               onClick={() => applySuggestion(suggestion)}
               disabled={pending}
             >
