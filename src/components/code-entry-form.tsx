@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Field, Input } from "@drinks-on-chain/ui";
-import { formatBottleCode } from "@/lib/codes/bottle-code";
+import { formatBottleCode } from "@drinks-on-chain/mocks";
 import { malformedMessage } from "@/lib/codes/messages";
 import { parseCode, type MalformedCode, type ValidCode } from "@/lib/codes/parse";
 import { es } from "@/lib/i18n/es";

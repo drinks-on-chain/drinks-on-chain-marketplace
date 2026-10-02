@@ -7,7 +7,8 @@ import { Alert, Card, CardHeader, Field, Select } from "@drinks-on-chain/ui";
 import { env } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
 
-const SCENARIO_LABELS: Record<ScenarioName, string> = {
+// Escenarios de fallo y, desde los mocks 0.5, de datos (los del ERP no cambian el visor).
+const SCENARIO_LABELS: Partial<Record<ScenarioName, string>> = {
   normal: "Normal",
   empty: "Listas vacías",
   error: "Error del servidor (500)",
@@ -43,7 +44,7 @@ export function MocksPanel() {
           <Select
             value={scenario}
             onValueChange={changeScenario}
-            options={SCENARIOS.map((s) => ({ value: s, label: SCENARIO_LABELS[s] }))}
+            options={SCENARIOS.map((s) => ({ value: s, label: SCENARIO_LABELS[s] ?? s }))}
           />
         </Field>
       </Card>

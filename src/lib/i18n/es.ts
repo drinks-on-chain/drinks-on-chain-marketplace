@@ -108,7 +108,7 @@ export const es = {
     eyebrow: "Solo desarrollo",
     scenario: "Escenario",
     off: "MSW está apagado. Arranca con NEXT_PUBLIC_MOCKS=1 (pnpm dev:mocks) para usar este panel.",
-    note: "El dominio público (pasaportes de lote y botella) llega con @drinks-on-chain/mocks 0.5.",
+    note: "Afecta a todas las rutas simuladas: pasaportes, bodegas y el borrador del catálogo.",
   },
 } as const;
 

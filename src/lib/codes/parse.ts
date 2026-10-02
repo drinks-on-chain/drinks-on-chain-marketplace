@@ -1,12 +1,12 @@
 import {
   BOTTLE_CODE_LENGTH,
   CROCKFORD_ALPHABET,
+  LOT_CODE_PATTERN,
   formatBottleCode,
   isValidBottleCode,
   normalizeBottleCode,
-  suggestBottleCode,
-} from "./bottle-code";
-import { isLotCodeShape, normalizeLotCode } from "./lot-code";
+} from "@drinks-on-chain/mocks";
+import { suggestBottleCode } from "./suggest";
 
 // Lo que alguien escribe, pega o trae en la URL del visor (`/b/{código}`) → botella, lote o
 // "mal escrito". Módulo puro: lo usan el servidor (la página), el formulario y las pruebas.
@@ -53,6 +53,8 @@ export type MalformedCode = {
 export type ValidCode = BottleCode | LotCode;
 export type ParsedCode = ValidCode | MalformedCode;
 
+const TYPOGRAPHIC_DASHES = /[\u2010-\u2015]/g;
+
 /** Si se pegó la URL del QR (`…/b/{código}` o la antigua `…/trace/batch/{lote}`), saca el código. */
 function fromPastedUrl(input: string): string {
   const match = /\/(?:b|trace\/batch)\/([^/?#\s]+)/i.exec(input);
@@ -69,10 +71,15 @@ export function parseCode(raw: string): ParsedCode {
   const input = fromPastedUrl(raw.trim()).trim();
   if (input === "") return { kind: "malformed", input, reason: "empty", length: 0, suggestion: null };
 
-  const lot = normalizeLotCode(input);
-  if (isLotCodeShape(lot)) return { kind: "lot", code: lot, formatted: lot };
+  // Guiones tipográficos (–, —) que ponen algunos teclados: cuentan como guion.
+  const text = input.replace(TYPOGRAPHIC_DASHES, "-");
 
-  const bottle = normalizeBottleCode(input);
+  // Código de lote (§6.3): `{prefijo}-{año}-{WINE|SINGANI}-{NNN}`. Solo la forma; que exista lo
+  // dice el pasaporte. Sus letras no se tocan (la I y la O de SINGANI son suyas).
+  const lot = text.toUpperCase().replace(/\s+/g, "");
+  if (LOT_CODE_PATTERN.test(lot)) return { kind: "lot", code: lot, formatted: lot };
+
+  const bottle = normalizeBottleCode(text);
   if (isValidBottleCode(bottle)) return { kind: "bottle", code: bottle, formatted: formatBottleCode(bottle) };
 
   const length = bottle.replace(/[^0-9A-Z]/g, "").length;
