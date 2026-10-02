@@ -304,6 +304,14 @@ export const es = {
     winery: "Bodega",
     all: "Todos",
     allWineries: "Todas las bodegas",
+    sort: "Ordenar por",
+    sorts: {
+      featured: "Destacadas",
+      newest: "Más recientes",
+      "price-asc": "Precio: de menor a mayor",
+      "price-desc": "Precio: de mayor a menor",
+      name: "Nombre",
+    },
     search: "Buscar",
     searchPlaceholder: "Nombre o bodega",
     searchSubmit: "Buscar",
@@ -377,7 +385,7 @@ export const es = {
     eyebrow: "Solo desarrollo",
     scenario: "Escenario",
     off: "MSW está apagado. Arranca con NEXT_PUBLIC_MOCKS=1 (pnpm dev:mocks) para usar este panel.",
-    note: "Afecta a todas las rutas simuladas: pasaportes, bodegas y el borrador del catálogo.",
+    note: "Afecta a las rutas simuladas: pasaportes, bodegas y el borrador del catálogo.",
   },
 } as const;
 

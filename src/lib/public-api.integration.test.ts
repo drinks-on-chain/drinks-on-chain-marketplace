@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { fetchCollection, fetchCollections, isCatalogUnavailable } from "@/lib/catalog/api";
 import { fetchCanonicalDossier, fetchPassport, passportErrorState } from "@/lib/passport/api";
 import type { BottlePassport } from "@/lib/passport/types";
-import { proofRoot, verifyBottleProof } from "@/lib/passport/verify";
+import { proofLeaf, verifyBottleProof } from "@/lib/passport/verify";
 import { fetchWineries, fetchWinery } from "@/lib/wineries/api";
 
 // La capa de datos pública contra los handlers reales de `@drinks-on-chain/mocks` (los mismos que
@@ -100,7 +100,7 @@ describe("pasaporte público", () => {
     const passport = await bottle(open.codes[0]!.code);
     expect(passport.lot.dossier).toMatchObject({ status: "OPEN", hash: null, canonicalUrl: null });
     expect(passport.bottle.merkleProof).toBeNull();
-    expect(proofRoot(passport.bottle)).toBeNull();
+    expect(proofLeaf(passport.bottle)).toBeNull();
     expect(fetchCanonicalDossier(passport.lot)).toBeNull();
   });
 
@@ -128,14 +128,14 @@ describe("comprobación de la botella contra el expediente (prueba Merkle)", () 
       const passport = await bottle(code);
       const canonical = await fetchCanonicalDossier(passport.lot);
       expect(canonical).not.toBeNull();
-      await expect(verifyBottleProof(passport, (await canonical)!)).resolves.toEqual({ status: "verified" });
+      expect(verifyBottleProof(passport, (await canonical)!)).toEqual({ status: "verified" });
     }
   });
 
   it("si el expediente descargado cambia, su huella ya no coincide", async () => {
     const passport = await bottle(activeCode);
     const canonical = (await fetchCanonicalDossier(passport.lot))!;
-    await expect(verifyBottleProof(passport, canonical.replace("2950", "2951"))).resolves.toEqual({
+    expect(verifyBottleProof(passport, canonical.replace("2950", "2951"))).toEqual({
       status: "mismatch",
       reason: "hash",
     });
@@ -145,15 +145,15 @@ describe("comprobación de la botella contra el expediente (prueba Merkle)", () 
     const passport = await bottle(activeCode);
     const canonical = (await fetchCanonicalDossier(passport.lot))!;
     const forged: BottlePassport = { ...passport, bottle: { ...passport.bottle, code: missingCode(7) } };
-    await expect(verifyBottleProof(forged, canonical)).resolves.toEqual({ status: "mismatch", reason: "root" });
+    expect(verifyBottleProof(forged, canonical)).toEqual({ status: "mismatch", reason: "root" });
     const otherSerial: BottlePassport = { ...passport, bottle: { ...passport.bottle, serial: 2 } };
-    await expect(verifyBottleProof(otherSerial, canonical)).resolves.toEqual({ status: "mismatch", reason: "root" });
+    expect(verifyBottleProof(otherSerial, canonical)).toEqual({ status: "mismatch", reason: "root" });
   });
 
   it("sin prueba, o con un expediente de otra forma, no se afirma nada", async () => {
     const passport = await bottle(activeCode);
     const noProof: BottlePassport = { ...passport, bottle: { ...passport.bottle, merkleProof: null } };
-    await expect(verifyBottleProof(noProof, "{}")).resolves.toEqual({ status: "unsupported" });
+    expect(verifyBottleProof(noProof, "{}")).toEqual({ status: "unsupported" });
   });
 });
 

@@ -1,14 +1,14 @@
-import { COLLECTION_STATUSES, LOT_PRODUCT_TYPES } from "@drinks-on-chain/mocks";
-import type { CollectionFilters } from "./api";
+import type { CollectionFilters, CollectionSort, CollectionStatus } from "./api";
 
 // Filtros del catálogo ↔ parámetros de la URL (en español, para que el enlace se pueda compartir).
-// [BORRADOR §17.1] Los filtros son los del borrador del catálogo y pueden cambiar con él.
+// [BORRADOR §17.1] Los filtros y el orden son los del borrador del catálogo y pueden cambiar con él.
 
 export const CATALOG_PARAMS = {
   productType: "tipo",
   status: "estado",
   winery: "bodega",
   q: "q",
+  sort: "orden",
   page: "pagina",
 } as const;
 
@@ -16,7 +16,18 @@ export const CATALOG_PARAMS = {
 export const CATALOG_PAGE_SIZE = 12;
 
 const PRODUCT_TYPE_SLUGS = { vino: "WINE", singani: "SINGANI" } as const;
-const STATUS_SLUGS = { preventa: "PRESALE", "a-la-venta": "ON_SALE", agotado: "SOLD_OUT" } as const;
+const STATUS_SLUGS: Record<string, CollectionStatus> = {
+  preventa: "PRESALE",
+  "a-la-venta": "ON_SALE",
+  agotado: "SOLD_OUT",
+};
+/** El orden por defecto (`featured`: destacadas primero) no se escribe en la URL. */
+const SORT_SLUGS: Record<string, Exclude<CollectionSort, "featured">> = {
+  recientes: "newest",
+  "precio-menor": "price-asc",
+  "precio-mayor": "price-desc",
+  nombre: "name",
+};
 
 type Reader = { get(name: string): string | null };
 
@@ -25,17 +36,19 @@ const slugOf = <T extends string>(map: Record<string, T>, value: T | undefined) 
 
 /** Lee los filtros de la URL; lo que no se reconoce se ignora. */
 export function filtersFromParams(params: Reader): CollectionFilters {
-  const type = params.get(CATALOG_PARAMS.productType) ?? "";
-  const status = params.get(CATALOG_PARAMS.status) ?? "";
   const winery = params.get(CATALOG_PARAMS.winery)?.trim();
   const q = params.get(CATALOG_PARAMS.q)?.trim();
-  const productType = (PRODUCT_TYPE_SLUGS as Record<string, (typeof LOT_PRODUCT_TYPES)[number]>)[type];
-  const statusValue = (STATUS_SLUGS as Record<string, (typeof COLLECTION_STATUSES)[number]>)[status];
+  const productType = (PRODUCT_TYPE_SLUGS as Record<string, "WINE" | "SINGANI">)[
+    params.get(CATALOG_PARAMS.productType) ?? ""
+  ];
+  const status = STATUS_SLUGS[params.get(CATALOG_PARAMS.status) ?? ""];
+  const sort = SORT_SLUGS[params.get(CATALOG_PARAMS.sort) ?? ""];
   return {
     ...(productType ? { productType } : {}),
-    ...(statusValue ? { status: statusValue } : {}),
+    ...(status ? { status } : {}),
     ...(winery ? { winery } : {}),
     ...(q ? { q } : {}),
+    ...(sort ? { sort } : {}),
   };
 }
 
@@ -46,6 +59,7 @@ export function paramsFromFilters(filters: CollectionFilters): Record<string, st
     [CATALOG_PARAMS.status]: slugOf(STATUS_SLUGS, filters.status),
     [CATALOG_PARAMS.winery]: filters.winery || null,
     [CATALOG_PARAMS.q]: filters.q || null,
+    [CATALOG_PARAMS.sort]: filters.sort && filters.sort !== "featured" ? slugOf(SORT_SLUGS, filters.sort) : null,
   };
 }
 
@@ -56,7 +70,9 @@ export function pageFromParams(params: Reader, limit = CATALOG_PAGE_SIZE) {
   return { page, offset: (page - 1) * limit };
 }
 
-export const hasFilters = (filters: CollectionFilters) => Object.keys(filters).length > 0;
+/** ¿Hay algún filtro puesto? (El orden no es un filtro: no cambia qué colecciones salen.) */
+export const hasFilters = ({ productType, status, winery, q }: CollectionFilters) =>
+  Boolean(productType || status || winery || q);
 
 /** Ruta del catálogo con unos filtros (enlaces "Ver singanis", "De esta bodega"…). */
 export function catalogHref(base: string, filters: CollectionFilters = {}): string {

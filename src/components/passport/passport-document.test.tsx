@@ -194,7 +194,7 @@ describe("PassportDocument · secciones del lote", () => {
     const log = section("Registro del lote");
     const items = within(log).getAllByRole("listitem");
     expect(items).toHaveLength(lot.timeline.length);
-    expect(items[0]).toHaveTextContent("Uva recibida y pesada en la bodega");
+    expect(items[0]).toHaveTextContent(lot.timeline[0]!.summary);
     expect(items[0]).toHaveTextContent("Operación de bodega");
     expect(items[0]).toHaveTextContent("Corregido");
     expect(items[1]).toHaveTextContent("Agronomía");
@@ -219,7 +219,7 @@ describe("PassportDocument · secciones del lote", () => {
     expect(lab).toHaveTextContent("Laboratorio de Servicios Analíticos ISO 17025");
     const methanol = within(lab).getByText("Metanol").closest("li")!;
     expect(methanol).toHaveTextContent("46,5 mg/100 mL de alcohol anhidro");
-    expect(methanol).toHaveTextContent("máx. 300 mg/100 ml a.a.");
+    expect(methanol).toHaveTextContent("máx. 200 mg/100 ml a.a.");
     expect(methanol).toHaveTextContent("Cumple");
     const abv = within(lab).getByText("Grado alcohólico").closest("li")!;
     expect(abv).toHaveTextContent("Sin límite fijado");
@@ -244,12 +244,13 @@ describe("PassportDocument · secciones del lote", () => {
     lot.rules.items[0] = { ...lot.rules.items[0]!, legalException: true };
     renderDocument(lot);
     const rules = section("Reglas con las que se hizo el lote");
-    expect(rules).toHaveTextContent("Altitud mínima de la parcela (D.O. Singani)");
+    // Las etiquetas vienen del backend: se pintan tal cual, sin depender de su texto.
+    expect(rules).toHaveTextContent(lot.rules.items[0]!.label);
     expect(rules).toHaveTextContent("1.600 msnm");
     expect(rules).toHaveTextContent("Excepción legal");
     expect(rules).toHaveTextContent("180 días");
     expect(rules).toHaveTextContent("Sí");
-    expect(rules).toHaveTextContent("Metanol: máx. 300 mg/100 ml a.a.");
+    expect(rules).toHaveTextContent("Metanol: máx. 200 mg/100 ml a.a.");
     cleanup();
     renderDocument(lotPassport(WINE_LOT));
     expect(section("Reglas con las que se hizo el lote")).toHaveTextContent(

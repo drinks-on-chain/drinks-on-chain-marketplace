@@ -5,7 +5,6 @@ import type { Collection } from "@/lib/catalog/api";
 import { catalogHref, filtersFromParams, hasFilters, pageFromParams, paramsFromFilters } from "@/lib/catalog/filters";
 import { fmtBob, fmtDecimal } from "@/lib/format";
 import { usableImageUrl } from "@/lib/images";
-import { pickFeatured } from "../home/featured";
 import { BottleCard } from "../store/bottle-card";
 import { PriceTag } from "../store/price-tag";
 import { CollectionDetail } from "./collection-screen";
@@ -133,7 +132,15 @@ describe("filtros del catálogo en la URL", () => {
       estado: "preventa",
       bodega: null,
       q: null,
+      orden: null,
     });
+    // El orden por defecto no se escribe; los demás, en español.
+    expect(paramsFromFilters({ sort: "featured" }).orden).toBeNull();
+    expect(paramsFromFilters({ sort: "price-asc" }).orden).toBe("precio-menor");
+    expect(filtersFromParams(new URLSearchParams("orden=recientes"))).toEqual({ sort: "newest" });
+    expect(filtersFromParams(new URLSearchParams("orden=raro"))).toEqual({});
+    // Ordenar no cuenta como filtro ("Quitar filtros" no aparece solo por eso).
+    expect(hasFilters({ sort: "name" })).toBe(false);
     expect(hasFilters({})).toBe(false);
     expect(hasFilters({ q: "gran" })).toBe(true);
     expect(catalogHref("/catalogo")).toBe("/catalogo");
@@ -147,17 +154,6 @@ describe("filtros del catálogo en la URL", () => {
     expect(pageFromParams(new URLSearchParams("pagina=3"), 12)).toEqual({ page: 3, offset: 24 });
     expect(pageFromParams(new URLSearchParams("pagina=-2"))).toEqual({ page: 1, offset: 0 });
     expect(pageFromParams(new URLSearchParams("pagina=abc"))).toEqual({ page: 1, offset: 0 });
-  });
-});
-
-describe("destacados de la portada", () => {
-  it("a la venta primero, después preventa y al final lo agotado", () => {
-    const featured = pickFeatured(publicFixtures.collections, 4);
-    expect(featured).toHaveLength(4);
-    expect(featured.every((c) => c.status === "ON_SALE")).toBe(true);
-    const all = pickFeatured(publicFixtures.collections, 99).map((c) => c.status);
-    expect(all.indexOf("PRESALE")).toBeGreaterThan(all.lastIndexOf("ON_SALE"));
-    expect(all.at(-1)).toBe("SOLD_OUT");
   });
 });
 

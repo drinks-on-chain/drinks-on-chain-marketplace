@@ -3,18 +3,10 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SCENARIOS, getScenario, setScenario, type ScenarioName } from "@drinks-on-chain/mocks/browser";
+import { SCENARIO_DESCRIPTIONS } from "@drinks-on-chain/mocks/handlers";
 import { Alert, Card, CardHeader, Field, Select } from "@drinks-on-chain/ui";
 import { env } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
-
-// Escenarios de fallo y, desde los mocks 0.5, de datos (los del ERP no cambian el visor).
-const SCENARIO_LABELS: Partial<Record<ScenarioName, string>> = {
-  normal: "Normal",
-  empty: "Listas vacías",
-  error: "Error del servidor (500)",
-  slow: "Lento (+2,5 s)",
-  offline: "Sin conexión",
-};
 
 // Panel de desarrollo: escenario de los mocks. El Marketplace no tiene usuarios de demo con los
 // que entrar (no hay sesión en esta ola).
@@ -40,11 +32,11 @@ export function MocksPanel() {
 
       <Card className="grid gap-4 p-6">
         <CardHeader title={es.mocks.scenario} description={es.mocks.note} />
-        <Field label={es.mocks.scenario} hideLabel className="w-72 max-w-full">
+        <Field label={es.mocks.scenario} hideLabel className="w-full max-w-xl">
           <Select
             value={scenario}
             onValueChange={changeScenario}
-            options={SCENARIOS.map((s) => ({ value: s, label: SCENARIO_LABELS[s] ?? s }))}
+            options={SCENARIOS.map((s) => ({ value: s, label: `${s} · ${SCENARIO_DESCRIPTIONS[s]}` }))}
           />
         </Field>
       </Card>

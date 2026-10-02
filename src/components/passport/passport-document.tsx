@@ -6,7 +6,7 @@ import { LabLimitSchema } from "@drinks-on-chain/mocks";
 import { Download, FileText, ShieldCheck } from "lucide-react";
 import { Alert, Badge, Button, Spinner, TextLink, cn } from "@drinks-on-chain/ui";
 import { z } from "zod";
-import { API_BASE } from "@/lib/env";
+import { apiHref } from "@/lib/api/paths";
 import { fmtDate, fmtDecimal, fmtNumber, shortHash } from "@/lib/format";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
@@ -608,15 +608,20 @@ function Rules({ lot }: { lot: LotPassport }) {
 // ─── Documentos públicos ─────────────────────────────────────────────────────────────────────
 
 function Attachments({ lot }: { lot: LotPassport }) {
-  if (lot.publicAttachments.length === 0) return null;
+  // La URL llega en los datos (ruta de la API o URL absoluta): solo se enlaza lo que se puede abrir.
+  const attachments = lot.publicAttachments.flatMap((attachment) => {
+    const href = apiHref(attachment.url);
+    return href ? [{ ...attachment, href }] : [];
+  });
+  if (attachments.length === 0) return null;
   return (
     <Section id="documentos" title={t.attachmentsTitle}>
       <ul className="m-0 grid list-none gap-1 p-0">
-        {lot.publicAttachments.map((attachment) => (
+        {attachments.map((attachment) => (
           <li key={attachment.id}>
             {/* La API responde un 302 a una URL firmada de corta vida (§12.1). */}
             <a
-              href={`${API_BASE}${attachment.url}`}
+              href={attachment.href}
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-11 items-center gap-2 rounded-sm text-lg text-accent-text underline underline-offset-[3px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"

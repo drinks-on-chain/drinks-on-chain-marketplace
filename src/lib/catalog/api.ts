@@ -3,6 +3,7 @@ import {
   PublicCollectionSummarySchema,
   type LotProductType,
   type PublicCollection,
+  type PublicCollectionSort,
   type PublicCollectionStatus,
   type PublicCollectionSummary,
 } from "@drinks-on-chain/mocks";
@@ -32,9 +33,15 @@ export type CollectionFilters = {
   winery?: string;
   /** Busca en el nombre de la colección y de la bodega. */
   q?: string;
+  /** Solo las destacadas (o solo las que no lo son). */
+  featured?: boolean;
+  /** Orden; por defecto `featured`: destacadas primero y después las más recientes. */
+  sort?: CollectionSort;
 };
 
-/** [BORRADOR §17.1] `GET /v1/public/collections?productType=&winery=&status=&q=`. */
+export type CollectionSort = PublicCollectionSort;
+
+/** [BORRADOR §17.1] `GET /v1/public/collections?productType=&winery=&status=&q=&featured=&sort=`. */
 export async function fetchCollections(
   filters: CollectionFilters = {},
   page: PageParams = {},

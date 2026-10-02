@@ -2,11 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { COLLECTION_STATUSES, LOT_PRODUCT_TYPES } from "@drinks-on-chain/mocks";
+import { COLLECTION_SORTS, COLLECTION_STATUSES, LOT_PRODUCT_TYPES } from "@drinks-on-chain/mocks";
 import { Search, Wine } from "lucide-react";
 import { Button, EmptyState, ErrorState, Field, Input, Pagination, Pill, PillGroup } from "@drinks-on-chain/ui";
 import { errorMessage } from "@/lib/api/errors";
-import { isCatalogUnavailable, type CollectionFilters } from "@/lib/catalog/api";
+import { isCatalogUnavailable, type CollectionFilters, type CollectionSort } from "@/lib/catalog/api";
 import {
   CATALOG_PAGE_SIZE,
   CATALOG_PARAMS,
@@ -25,7 +25,7 @@ import { NativeSelect } from "../store/native-select";
 import { CollectionGrid, CollectionGridSkeleton } from "./collection-grid";
 
 // 2A · Catálogo sin cuenta.
-// [BORRADOR §17.1] La lista y sus filtros (tipo, bodega, estado, búsqueda) son los del borrador
+// [BORRADOR §17.1] La lista, sus filtros (tipo, bodega, estado, búsqueda) y el orden son los del borrador
 // del catálogo: pueden cambiar. Con un backend que aún no lo publica, la pantalla dice
 // "próximamente". Sin compra ni cuenta en esta ola.
 
@@ -170,6 +170,14 @@ export function CatalogScreen() {
                       ? [{ value: filters.winery, label: filters.winery }]
                       : []),
                   ]}
+                />
+              </Field>
+
+              <Field label={t.sort} className="md:w-64">
+                <NativeSelect
+                  value={filters.sort ?? "featured"}
+                  onChange={(event) => apply({ ...filters, sort: event.target.value as CollectionSort })}
+                  options={COLLECTION_SORTS.map((sort) => ({ value: sort, label: t.sorts[sort] }))}
                 />
               </Field>
             </div>
