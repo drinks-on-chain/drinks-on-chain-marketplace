@@ -6,7 +6,7 @@ import { StoreFrame } from "@/components/store-frame";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
 
-export const metadata: Metadata = { title: es.errors.notFoundTitle };
+export const metadata: Metadata = { title: es.errors.notFoundTitle, robots: { index: false, follow: false } };
 
 export default function NotFound() {
   return (

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { env } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
 import { links } from "@/lib/links";
 import { PAPER } from "@/lib/theme";
@@ -13,8 +14,9 @@ export const metadata: Metadata = {
   // PWA: el manifest sale de `src/app/manifest.ts`; en iOS, "Añadir a inicio" usa estos datos.
   appleWebApp: { capable: true, title: es.app.name, statusBarStyle: "default" },
   formatDetection: { telephone: false },
-  // Portada provisional y visor sin datos: nada se indexa hasta la fase 2 (catálogo y pasaporte).
-  robots: { index: false, follow: false },
+  // Con datos de demostración (mocks) nada se indexa. Con el backend real se indexa todo salvo
+  // lo que cada página excluya (los códigos de botella nunca: contrato §12.5).
+  robots: env.mocks ? { index: false, follow: false } : { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
