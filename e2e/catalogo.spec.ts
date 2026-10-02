@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { CASE, NO_PRICE_COLLECTION, expectNoHorizontalScroll, shellNav, trackErrors } from "./support";
+import { CASE, CATALOG, NO_PRICE_COLLECTION, expectNoHorizontalScroll, shellNav, trackErrors } from "./support";
 
 // 2A · Catálogo sin cuenta y páginas de bodega, contra los mocks.
 // [BORRADOR §17.1] `/v1/public/collections` es un borrador: estas pruebas cambian con él.
@@ -15,14 +15,24 @@ test("catálogo: lista, filtros en la URL y búsqueda", async ({ page }) => {
   await shellNav(page).getByRole("link", { name: "Catálogo" }).click();
   await expect(page).toHaveURL(/\/catalogo$/);
   await expect(page.getByRole("heading", { level: 1, name: "Catálogo" })).toBeVisible();
-  await expect(count(page)).toHaveText("7 colecciones");
-  await expect(cards(page)).toHaveCount(7);
+  await expect(count(page)).toHaveText(CATALOG.total);
+  await expect(cards(page)).toHaveCount(CATALOG.size);
+  // Las destacadas van primero (orden por defecto del catálogo) y las imágenes cargan.
+  await expect(cards(page).first().getByRole("link")).toHaveText(CATALOG.featured[0]!.name);
+  await expect
+    .poll(() =>
+      cards(page)
+        .first()
+        .locator("img")
+        .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await expectNoHorizontalScroll(page);
 
   // Tipo.
   await pill(page, "Tipo", "Vino").click();
   await expect(page).toHaveURL(/\?tipo=vino$/);
-  await expect(count(page)).toHaveText("2 colecciones");
+  await expect(count(page)).toHaveText(CATALOG.where((c) => c.productType === "WINE"));
   await expect(pill(page, "Tipo", "Vino")).toHaveAttribute("aria-pressed", "true");
   for (const card of await cards(page).all()) await expect(card).toContainText("Vino ·");
 
@@ -40,7 +50,7 @@ test("catálogo: lista, filtros en la URL y búsqueda", async ({ page }) => {
   // Quitar filtros.
   await page.getByRole("button", { name: "Quitar filtros" }).click();
   await expect(page).toHaveURL(/\/catalogo$/);
-  await expect(count(page)).toHaveText("7 colecciones");
+  await expect(count(page)).toHaveText(CATALOG.total);
 
   // Búsqueda por nombre.
   await page.getByRole("searchbox", { name: "Buscar" }).fill("gran reserva");
@@ -54,17 +64,29 @@ test("catálogo: lista, filtros en la URL y búsqueda", async ({ page }) => {
   await page.getByRole("button", { name: "Buscar", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Ninguna colección coincide" })).toBeVisible();
   await page.getByRole("main").getByRole("button", { name: "Quitar filtros" }).last().click();
-  await expect(count(page)).toHaveText("7 colecciones");
+  await expect(count(page)).toHaveText(CATALOG.total);
   expect(errors).toEqual([]);
 });
 
-test("catálogo: filtro por bodega", async ({ page }) => {
+test("catálogo: filtro por bodega y orden, en la URL", async ({ page }) => {
   await page.goto("/catalogo");
-  await expect(count(page)).toHaveText("7 colecciones");
+  await expect(count(page)).toHaveText(CATALOG.total);
   await page.getByRole("combobox", { name: "Bodega" }).selectOption({ label: "Bodega Altos de Calamuchita" });
   await expect(page).toHaveURL(/\?bodega=altos-de-calamuchita$/);
-  await expect(count(page)).toHaveText("1 colección");
+  await expect(count(page)).toHaveText(CATALOG.where((c) => c.winery.slug === "altos-de-calamuchita"));
   await expect(cards(page).first()).toContainText("Bodega Altos de Calamuchita");
+  await page.getByRole("button", { name: "Quitar filtros" }).click();
+
+  // El orden lo aplica el catálogo (`?sort=`); el de por defecto no se escribe en la URL.
+  await page.getByRole("combobox", { name: "Ordenar por" }).selectOption({ label: "Precio: de menor a mayor" });
+  await expect(page).toHaveURL(/\?orden=precio-menor$/);
+  await expect(cards(page).first().getByRole("link")).toHaveText(CATALOG.cheapest.name);
+  // Ordenar no es filtrar: siguen todas y no aparece "Quitar filtros".
+  await expect(count(page)).toHaveText(CATALOG.total);
+  await expect(page.getByRole("button", { name: "Quitar filtros" })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Ordenar por" })).toHaveValue("price-asc");
+  await expect(cards(page).first().getByRole("link")).toHaveText(CATALOG.cheapest.name);
 });
 
 test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin compra)", async ({ page }) => {
@@ -129,13 +151,23 @@ test("bodegas: directorio, página de bodega y sus colecciones", async ({ page }
   await expect(page.getByRole("heading", { level: 1, name: CASE.winery })).toBeVisible();
   await expect(page.getByText("Destilería", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Historia" })).toContainText("cañón de Cinti");
+  // El logotipo de los datos de demostración lo sirven los mocks.
+  await expect
+    .poll(() =>
+      page
+        .getByRole("main")
+        .locator("img")
+        .first()
+        .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await expect(page.getByRole("link", { name: `Sitio web de ${CASE.winery}` })).toHaveAttribute(
     "href",
     "https://cintiviejo.test",
   );
 
   const collections = page.getByRole("region", { name: "Colecciones de esta bodega" });
-  await expect(collections.getByRole("article")).toHaveCount(6);
+  await expect(collections.getByRole("article")).toHaveCount(CATALOG.ofWinery(CASE.winerySlug).length);
   await expect(collections.getByRole("link", { name: CASE.name })).toBeVisible();
   await expectNoHorizontalScroll(page);
   expect(errors).toEqual([]);

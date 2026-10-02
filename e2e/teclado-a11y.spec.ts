@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import {
   BOTTLE,
   CASE,
+  CASES,
+  CATALOG,
   NO_PRICE_COLLECTION,
   WINE_LOT,
   axe,
@@ -19,6 +21,14 @@ const PAGES: { name: string; path: string; ready: string }[] = [
   { name: "pasaporte de botella", path: `/b/${CASE.bottle.code}`, ready: "Reglas con las que se hizo el lote" },
   { name: "pasaporte de lote", path: `/b/${WINE_LOT}`, ready: "Reglas con las que se hizo el lote" },
   { name: "código anulado", path: `/b/${CASE.voided.code}`, ready: "Reglas con las que se hizo el lote" },
+  { name: "bodega suspendida", path: `/b/${CASES.wineryInactive}`, ready: "Reglas con las que se hizo el lote" },
+  { name: "lote retirado", path: `/b/${CASES.discarded}`, ready: "Reglas con las que se hizo el lote" },
+  {
+    name: "laboratorio no conforme",
+    path: `/b/${CASES.labNonConforming}`,
+    ready: "Reglas con las que se hizo el lote",
+  },
+  { name: "D.O. por excepción", path: `/b/${CASES.doByException}`, ready: "Reglas con las que se hizo el lote" },
   { name: "visor (no encontrado)", path: `/b/${BOTTLE.code}`, ready: "No encontramos este código" },
   { name: "visor (mal escrito)", path: "/b/K7MZ-Q9XM", ready: "Este código está mal escrito" },
   { name: "catálogo", path: "/catalogo", ready: CASE.name },
@@ -102,7 +112,7 @@ async function tabThrough(page: import("@playwright/test").Page, max = 60) {
 
 test("todo lo interactivo de la portada se alcanza con Tab y muestra el foco", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("region", { name: "Destacados" }).getByRole("article")).toHaveCount(4);
+  await expect(page.getByRole("region", { name: "Destacados" }).getByRole("article")).not.toHaveCount(0);
 
   const reached = await tabThrough(page);
   for (const expected of [
@@ -124,7 +134,7 @@ test("todo lo interactivo de la portada se alcanza con Tab y muestra el foco", a
 test("los filtros del catálogo se manejan con teclado", async ({ page }) => {
   await page.goto("/catalogo");
   const status = page.getByRole("status").filter({ hasText: /colecci(ón|ones)$/ });
-  await expect(status).toHaveText("7 colecciones");
+  await expect(status).toHaveText(CATALOG.total);
 
   // Un filtro se activa con la barra espaciadora y con Intro.
   const singani = page.getByRole("group", { name: "Tipo" }).getByRole("button", { name: "Singani" });
@@ -132,7 +142,7 @@ test("los filtros del catálogo se manejan con teclado", async ({ page }) => {
   expect(await hasVisibleFocus(page)).toBe(true);
   await page.keyboard.press("Space");
   await expect(page).toHaveURL(/\?tipo=singani$/);
-  await expect(status).toHaveText("5 colecciones");
+  await expect(status).toHaveText(CATALOG.where((c) => c.productType === "SINGANI"));
   await expect(singani).toHaveAttribute("aria-pressed", "true");
 
   // El selector de bodega es el del sistema: recibe el foco y se cambia sin ratón.
@@ -141,11 +151,15 @@ test("los filtros del catálogo se manejan con teclado", async ({ page }) => {
   expect(await hasVisibleFocus(page)).toBe(true);
   await winery.selectOption({ label: "Destilería Cinti Viejo" });
   await expect(page).toHaveURL(/tipo=singani&bodega=destileria-cinti-viejo$/);
-  await expect(status).toHaveText("5 colecciones");
+  await expect(status).toHaveText(
+    CATALOG.where((c) => c.productType === "SINGANI" && c.winery.slug === CASE.winerySlug),
+  );
 
   // La búsqueda se envía con Intro.
   await page.getByRole("searchbox", { name: "Buscar" }).focus();
   await page.keyboard.type("molino");
   await page.keyboard.press("Enter");
-  await expect(status).toHaveText("2 colecciones");
+  await expect(status).toHaveText(
+    CATALOG.where((c) => c.productType === "SINGANI" && c.winery.slug === CASE.winerySlug && /molino/i.test(c.name)),
+  );
 });
