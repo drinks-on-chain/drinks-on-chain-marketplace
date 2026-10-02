@@ -13,6 +13,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/mockServiceWorker.js",
+    // Artefactos de Playwright (las trazas guardan copias de los scripts de la página).
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 

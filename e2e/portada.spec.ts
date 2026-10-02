@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { CASE, codeField, expectNoHorizontalScroll, isMobile, trackErrors, verifyButton } from "./support";
+import { CASE, CATALOG, codeField, expectNoHorizontalScroll, isMobile, trackErrors, verifyButton } from "./support";
 
 // Portada, shell y PWA básica (O2-MK-1). Cada prueba corre a 390 y a 1280 px.
 
@@ -14,10 +14,10 @@ test("portada: marca, verificar una botella, destacados del catálogo y bodegas"
   await expect(codeField(page)).toBeVisible();
   await expect(verifyButton(page)).toBeVisible();
 
-  // Destacados: cuatro colecciones, primero las que están a la venta.
+  // Destacados: las que el catálogo marca como destacadas, en su orden (aquí no se ordena nada).
   const featured = page.getByRole("region", { name: "Destacados" });
-  await expect(featured.getByRole("article")).toHaveCount(4);
-  await expect(featured.getByRole("article").first()).toContainText("A la venta");
+  await expect(featured.getByRole("article")).toHaveCount(Math.min(4, CATALOG.featured.length));
+  await expect(featured.getByRole("article").first().getByRole("link")).toHaveText(CATALOG.featured[0]!.name);
   await expect(featured.getByRole("link", { name: "Ver todo el catálogo" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Las bodegas" })).toBeVisible();
 

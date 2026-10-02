@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Badge, cn, focusRing } from "@drinks-on-chain/ui";
 import type { CollectionStatus, CollectionSummary } from "@/lib/catalog/api";
 import { es } from "@/lib/i18n/es";
-import { usableImageUrl } from "@/lib/images";
 import { routes } from "@/lib/links";
 import { BottleArt } from "./bottle-art";
+import { DataImage } from "./data-image";
 import { PriceTag } from "./price-tag";
 
 // Pendiente de mover a @drinks-on-chain/ui (`BottleCard`, 05 §3.2 y maqueta 02-marketplace).
@@ -24,17 +24,15 @@ export function CollectionArt({
   collection: Pick<CollectionSummary, "imageUrl" | "productType">;
   className?: string;
 }) {
-  const image = usableImageUrl(collection.imageUrl);
   return (
     <div
       className={cn("grid place-items-center overflow-hidden rounded-lg border border-border bg-bg-sunken", className)}
     >
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element -- imágenes de un origen que no se conoce al construir
-        <img src={image} alt="" loading="lazy" className="size-full object-cover" />
-      ) : (
-        <BottleArt productType={collection.productType} className="h-3/4" />
-      )}
+      <DataImage
+        src={collection.imageUrl}
+        className="size-full object-cover"
+        fallback={<BottleArt productType={collection.productType} className="h-3/4" />}
+      />
     </div>
   );
 }

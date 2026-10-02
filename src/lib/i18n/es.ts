@@ -101,6 +101,16 @@ export const es = {
     another: "Verificar otro código",
     anotherTitle: "¿Tienes otra botella?",
 
+    // Descripción de la página de un lote (metadatos y tarjeta al compartir).
+    meta: {
+      intro: (type: string, vintage: number, winery: string, region: string) =>
+        `${type} de la añada ${vintage} de ${winery} (${region}).`,
+      origin: (parcels: string[]) => `Origen: ${parcels.join(", ")}.`,
+      bottles: (count: number) => `${new Intl.NumberFormat("es-BO").format(count)} botellas.`,
+      dossierClosed: "Expediente cerrado, con su huella.",
+      lot: (lotCode: string) => `Origen, elaboración y laboratorio del lote ${lotCode}.`,
+    },
+
     // Qué identifica el código (§12.5, punto 2).
     bottleSerial: (serial: string, total: string) => `Botella n.º ${serial} de ${total}`,
     bottleCode: "Código de la botella",
@@ -304,6 +314,14 @@ export const es = {
     winery: "Bodega",
     all: "Todos",
     allWineries: "Todas las bodegas",
+    sort: "Ordenar por",
+    sorts: {
+      featured: "Destacadas",
+      newest: "Más recientes",
+      "price-asc": "Precio: de menor a mayor",
+      "price-desc": "Precio: de mayor a menor",
+      name: "Nombre",
+    },
     search: "Buscar",
     searchPlaceholder: "Nombre o bodega",
     searchSubmit: "Buscar",
@@ -377,7 +395,7 @@ export const es = {
     eyebrow: "Solo desarrollo",
     scenario: "Escenario",
     off: "MSW está apagado. Arranca con NEXT_PUBLIC_MOCKS=1 (pnpm dev:mocks) para usar este panel.",
-    note: "Afecta a todas las rutas simuladas: pasaportes, bodegas y el borrador del catálogo.",
+    note: "Afecta a las rutas simuladas: pasaportes, bodegas y el borrador del catálogo.",
   },
 } as const;
 

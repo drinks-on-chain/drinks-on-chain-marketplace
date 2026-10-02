@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 import { luhnMod32CheckChar } from "@drinks-on-chain/mocks";
-import { SINGANI_CASE, publicFixtures } from "@drinks-on-chain/mocks/fixtures";
+import { PASSPORT_CASES, SINGANI_CASE, publicFixtures } from "@drinks-on-chain/mocks/fixtures";
 
 // Utilidades de las e2e del Marketplace contra los mocks: códigos de muestra, errores de consola,
 // auditoría axe (WCAG 2.1 A y AA), foco visible y desbordamiento horizontal.
@@ -33,7 +33,29 @@ export const CASE = (() => {
 })();
 
 /** Vino migrado con el expediente abierto y sin análisis de laboratorio. */
-export const WINE_LOT = "CVJ-2026-WINE-003";
+export const WINE_LOT = PASSPORT_CASES.labNotRecorded;
+
+/** Casos del pasaporte en los fixtures (`PASSPORT_CASES`): un lote para cada aviso del visor. */
+export const CASES = PASSPORT_CASES;
+
+/** Primer código de botella de muestra de un lote. */
+export const firstBottleOf = (lotCode: string) =>
+  publicFixtures.bottleCodes.find((sample) => sample.lotCode === lotCode)!.codes[0]!;
+
+/** Cuentas del catálogo de los fixtures (borrador §17.1), para no escribir cifras a mano. */
+export const CATALOG = (() => {
+  const all = publicFixtures.collections;
+  const count = (n: number) => `${n} ${n === 1 ? "colección" : "colecciones"}`;
+  const priced = all.filter((c) => c.price !== null);
+  return {
+    size: all.length,
+    total: count(all.length),
+    featured: all.filter((c) => c.featured),
+    where: (test: (c: (typeof all)[number]) => boolean) => count(all.filter(test).length),
+    cheapest: priced.reduce((a, b) => (b.price!.amountMinor < a.price!.amountMinor ? b : a)),
+    ofWinery: (slug: string) => all.filter((c) => c.winery.slug === slug),
+  };
+})();
 /** Colección en preventa sin precio ni lote embotellado. */
 export const NO_PRICE_COLLECTION = {
   slug: "singani-edicion-aniversario-2026",

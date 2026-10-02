@@ -69,9 +69,19 @@ Contra `@drinks-on-chain/mocks` 0.5.0-rc.1 (dominio `public` y borrador del cat�
 - [x] Reglas del lote (instantánea, con la excepción legal), documentos públicos y "Descargar expediente" (JSON canónico) · 2026-10-02
 - [x] Solo datos registrados: `null` y `NOT_RECORDED` se escriben "No registrado"; sin reseñas, precio ni NFT · 2026-10-02
 - [x] SEO: la botella nunca se indexa; el lote, la bodega, el catálogo y la portada sí (salvo con `NEXT_PUBLIC_MOCKS=1`) · 2026-10-02
-- [ ] Pintar el pasaporte del lote **en el servidor** (hoy los datos se piden en el navegador: el contenido no va en el HTML inicial)
-- [x] Pasaporte de lote contra el backend de desarrollo con `NEXT_PUBLIC_MOCKS=0` (`CVJ-2026-SINGANI-001`), con una tolerancia en el esquema: `fermentation.startDate`/`endDate` llegan como instantes (`src/lib/passport/schema.ts`) · 2026-10-02
-- [ ] Pasaporte de **botella** contra el backend de desarrollo (hace falta un código real de un lote embotellado) y retirar la tolerancia de fechas cuando backend y mocks coincidan
+- [x] Pasaporte de lote contra el backend de desarrollo con `NEXT_PUBLIC_MOCKS=0` · 2026-10-02
+
+### Fase 3 · Mocks 0.5.0-rc.2, backend real y lote en el servidor
+
+- [x] `@drinks-on-chain/mocks` 0.5.0-rc.2 **sin tolerancias locales**: fechas de la fermentación como instantes; prueba Merkle con `verifyMerkleProof`, `sha256Hex` y `CanonicalDossierSchema` (padre sobre bytes, raíz en `bottleCodes.merkleRoot` del expediente) · 2026-10-02
+- [x] `canonicalUrl` y las URL de los adjuntos, como ruta o como URL absoluta, siempre por el proxy propio (`src/lib/api/paths.ts`) · 2026-10-02
+- [x] Catálogo borrador de rc.2: la portada pide `featured` y el catálogo ofrece `?orden=`; imágenes y logotipos con `DataImage`; panel `/__mocks` con `SCENARIO_DESCRIPTIONS` · 2026-10-02
+- [x] E2E de cada aviso con `PASSPORT_CASES`: bodega suspendida, lote retirado (y sus botellas anuladas), D.O. por excepción, registro tardío, laboratorio no conforme y límite por minuto (`pasaporte-saturado`) · 2026-10-02
+- [x] **Pasaporte del lote en el servidor** (contrato §12.4): contenido en el HTML inicial, metadatos y Open Graph del lote, IP del visitante firmada en cada petición, caché por código de lote (60 s; 3600 s certificado), 404 real para un lote inexistente (`src/lib/passport/server.ts`) · 2026-10-02
+- [x] Contra el backend de desarrollo, sin tolerancias: lotes `CVJ-2026-SINGANI-002` (abierto), `-004` y `-005` (certificados, con el expediente canónico y su huella); `e2e/backend-real.spec.ts` (`E2E_REAL_API=1`) · 2026-10-02
+- [ ] Pasaporte de **botella** contra el backend real: hace falta un código real (`E2E_BOTTLE_CODE`); lo cubre el recorrido `h2-pasaporte` del repo `drinks-on-chain-e2e`
+- [ ] Probar el servidor con mocks: hoy el camino del servidor solo se ejercita contra el backend real (con `NEXT_PUBLIC_MOCKS=1` todo va por el navegador)
+- [ ] 304 con `ETag`: el visor no envía `If-None-Match` por su cuenta (lo haría la caché HTTP del navegador o del CDN)
 
 Bodegas:
 
@@ -101,10 +111,12 @@ Hechos en local (`src/components/store/`, con la nota "Pendiente de mover a @dri
 - `BottleCard` + `CollectionArt` + `BottleArt`: tarjeta de colección con fotografía o botella a tinta.
 - `PriceTag`: precio en oro para texto, con "Precio por anunciar" cuando falta.
 - `CodeInput`: campo de código (mayúsculas a la vista, cifras alineadas, sin autocorrección).
-- `NativeSelect`: selector nativo con el aspecto de los campos. El `Select` del paquete (Radix), con la lista abierta, deja contenido enfocable bajo `aria-hidden` y axe lo señala como violación seria (`aria-hidden-focus`).
+- `NativeSelect`: selector nativo con el aspecto de los campos. Se queda en local hasta que se corrija el `Select` del paquete (ver abajo).
+- `DataImage`: imagen de los datos con respaldo (ilustración o monograma) si falta o falla.
 
 Ajustes en componentes que ya existen:
 
+- **`Select` (Radix) con la lista abierta: violación seria de axe `aria-hidden-focus`.** Caso mínimo: una página con cualquier elemento enfocable fuera del selector (un enlace, o el propio shell) y `<Field label="Bodega"><Select value="a" options={[{ value: "a", label: "A" }, { value: "b", label: "B" }]} /></Field>`; se abre la lista (clic o Intro en el `combobox`) y se pasa axe con `wcag2a`/`wcag2aa`. Mientras la lista está abierta, Radix pone `aria-hidden="true"` (`data-aria-hidden`) a los hermanos del portal (aquí, la raíz del `StoreShell` y el enlace "Saltar al contenido") sin quitarles el foco: quedan elementos enfocables dentro de un árbol oculto a los lectores de pantalla. Arreglo posible en `ui`: marcar esos hermanos con `inert` mientras está abierta, o un selector no modal. Mientras tanto, el Marketplace usa `NativeSelect`.
 - `StoreShell`: hueco para el **pie** fuera de `<main>` (hoy el pie va dentro del contenido y no es `contentinfo`) y **salto al contenido** propio, como `AppShell`.
 - `Field`: el mensaje de error sin `role="alert"`; el formulario lo envuelve a mano para que se anuncie.
 - `Pill`: tamaño táctil (≥ 44 px); hoy 32 px, se agranda con clases.
@@ -117,17 +129,19 @@ Por hacer en sus olas:
 - 2A: `StickyBuyBar`, `HeroBanner`.
 - 2B–2D: `AuthSheet`, `AddressReadOnly`, `CheckoutSheet`, `OrderStatus`, `TokenCard`, `PickupPointPicker`, `ClaimTicket`.
 
-## Huecos de `@drinks-on-chain/mocks` 0.5.0-rc.1 (para la rc.2)
+## Backend ↔ `@drinks-on-chain/mocks` 0.5.0-rc.2
 
-- **`fermentation.startDate` y `endDate`**: los mocks (y el contrato) las tipan como fecha `YYYY-MM-DD`; el backend de desarrollo las devuelve como instante (`2025-03-11T14:30:00.000Z`), así que un pasaporte real no pasa `PublicLotPassportSchema`. O cambia el backend o cambia el esquema.
-- **Sin casos de bodega no activa ni de lote retirado** en el dominio público: los avisos solo se prueban con datos construidos a mano. Haría falta un escenario de datos (o fixtures) con `winery.active: false` y con `stage: 'DISCARDED'`.
-- **Sin lotes con D.O. por excepción legal, laboratorio no conforme o incompleto ni registros tardíos** entre los pasaportes de muestra (el escenario `laboratorio-no-conforme` es del ERP y no deja un lote con `lotCode` distinto en `publicFixtures`).
-- **`imageUrl` y `logoUrl` apuntan a `/mocks/uploads/…`, que nadie sirve** (tampoco en la semilla del backend): o se sirve un marcador de posición o deberían llegar `null`. Aquí se tratan como "sin imagen".
-- **La raíz Merkle no está en el pasaporte**: para comprobar una botella hay que descargar el expediente canónico y leer `bottleCodes.merkleRoot`, una forma que no tiene esquema exportado. Convendría exportar el esquema del expediente canónico (o añadir `dossier.merkleRoot` al pasaporte) y `sha256Hex`.
-- **Documentos públicos y descarga del expediente por enlace**: el service worker de MSW no intercepta navegaciones, así que `…/attachments/{id}` (302) y `…/dossier` no se pueden abrir como enlaces con mocks; el expediente se descarga con `fetch` y el adjunto solo funciona contra el backend real.
-- **El límite general de 60 peticiones por minuto no se simula** (solo el de códigos inexistentes).
-- **Catálogo (borrador)**: sin orden ni "destacados" (la portada los ordena en el cliente), sin parámetro de orden, y los lotes migrados usan el código de lote como `name` del pasaporte mientras la colección tiene un nombre comercial distinto.
-- **`ScenarioName` creció con los escenarios de datos** (`lote-en-reposo`…): un `Record<ScenarioName, string>` de las apps deja de compilar al actualizar; conviene avisarlo en la guía de migración.
+Los huecos de la rc.1 quedaron resueltos en la rc.2 (fechas de la fermentación, casos del pasaporte, archivos de `/mocks/uploads`, esquema del expediente canónico, `sha256Hex`, límite por minuto, `featured` y orden del catálogo). Lo que sigue distinto o pendiente, comprobado el 02-10-2026 contra el backend de desarrollo:
+
+- **El pasaporte y el expediente coinciden**: tres lotes reales pasan `PublicCodePassportSchema` y `CanonicalDossierSchema` sin tolerancias, y la huella recalculada coincide con `dossier.hash`.
+- **Catálogo**: el backend no tiene `/v1/public/collections` (404); solo existe en los mocks, como borrador.
+- **`canonicalUrl` y `publicAttachments[].url`**: hoy llegan como ruta en los dos; el OpenAPI las documenta como URL absolutas y el backend las devolverá así con `API_PUBLIC_URL`. Los mocks siguen con la ruta. El visor acepta las dos formas.
+- **Logotipos**: la semilla del backend trae `logoUrl: "/mocks/uploads/logos/…"`, que en el backend nadie sirve (en los mocks sí). Sin mocks se pinta el monograma.
+- **Nombre del lote migrado**: en el backend y en los mocks es el propio código de lote (`CVJ-2026-SINGANI-002`), así que el título de su página es el código; el nombre comercial solo existe en la colección del catálogo (borrador).
+- **Etiquetas de las reglas y textos de la línea de tiempo**: los pone el backend; el visor los pinta tal cual y las pruebas no dependen de su texto.
+- **Documentos públicos y descarga por enlace**: el service worker de MSW no intercepta navegaciones, así que `…/attachments/{id}` (302) no se abre con mocks; el expediente se descarga con `fetch`.
+- **Sin caso de botella anulada después del cierre** (conserva su prueba) entre los códigos de muestra: el visor muestra el aviso de anulación y no la da por verificada, pero no hay fixture para probarlo de extremo a extremo.
+- **El camino del servidor no se puede probar con mocks**: MSW solo vive en el navegador. Haría falta que los mocks pudieran responder también a las peticiones del servidor de Next (p. ej. un servidor HTTP de los handlers) para cubrirlo en la CI.
 
 ## Olas siguientes
 
