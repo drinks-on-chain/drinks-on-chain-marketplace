@@ -81,7 +81,12 @@ Contra `@drinks-on-chain/mocks` 0.5.0-rc.1 (dominio `public` y borrador del cat�
 - [x] Contra el backend de desarrollo, sin tolerancias: lotes `CVJ-2026-SINGANI-002` (abierto), `-004` y `-005` (certificados, con el expediente canónico y su huella); `e2e/backend-real.spec.ts` (`E2E_REAL_API=1`) · 2026-10-02
 - [ ] Pasaporte de **botella** contra el backend real: hace falta un código real (`E2E_BOTTLE_CODE`); lo cubre el recorrido `h2-pasaporte` del repo `drinks-on-chain-e2e`
 - [ ] Probar el servidor con mocks: hoy el camino del servidor solo se ejercita contra el backend real (con `NEXT_PUBLIC_MOCKS=1` todo va por el navegador)
-- [ ] 304 con `ETag`: el visor no envía `If-None-Match` por su cuenta (lo haría la caché HTTP del navegador o del CDN)
+- [ ] **Mejora: 304 con `ETag`.** El backend responde el pasaporte con `ETag` y acepta `If-None-Match` (304 sin cuerpo); el visor no lo usa. En el servidor (`src/lib/passport/server.ts`) habría que guardar el `ETag` junto al pasaporte y, al caducar la caché, revalidar con `If-None-Match` en vez de pedir el cuerpo entero; en el navegador (botellas), lo mismo con la caché de TanStack Query. Sin implementar a propósito: no cambia lo que se ve
+
+### Cierre · Mocks 0.5.0-rc.3
+
+- [x] `@drinks-on-chain/mocks` 0.5.0-rc.3 (candidata a estable de la ola; sin el grafo legado ni `LotView`, que el Marketplace no usaba): ningún esquema del visor cambia; los fixtures sí (huella del expediente de `CVJ-2026-SINGANI-004`, crianza mínima de Altos) y las pruebas no dependen de sus valores · 2026-10-02
+- [x] Una sola etiqueta `robots` por página: el 404 de un lote solo lleva `noindex` (el layout ya no declara `index, follow`; sin etiqueta la página es indexable) · 2026-10-02
 
 Bodegas:
 
@@ -129,7 +134,7 @@ Por hacer en sus olas:
 - 2A: `StickyBuyBar`, `HeroBanner`.
 - 2B–2D: `AuthSheet`, `AddressReadOnly`, `CheckoutSheet`, `OrderStatus`, `TokenCard`, `PickupPointPicker`, `ClaimTicket`.
 
-## Backend ↔ `@drinks-on-chain/mocks` 0.5.0-rc.2
+## Backend ↔ `@drinks-on-chain/mocks` 0.5.0-rc.2 y rc.3
 
 Los huecos de la rc.1 quedaron resueltos en la rc.2 (fechas de la fermentación, casos del pasaporte, archivos de `/mocks/uploads`, esquema del expediente canónico, `sha256Hex`, límite por minuto, `featured` y orden del catálogo). Lo que sigue distinto o pendiente, comprobado el 02-10-2026 contra el backend de desarrollo:
 
