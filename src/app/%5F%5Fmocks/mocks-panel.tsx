@@ -1,139 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  SCENARIOS,
-  expireAccessTokens,
-  getScenario,
-  resetErpDb,
-  setScenario,
-  type ScenarioName,
-} from "@drinks-on-chain/mocks/browser";
-import { DEMO_PASSWORD, demoUsers } from "@drinks-on-chain/mocks/fixtures";
-import { Alert, Badge, Button, Card, CardHeader, DataTable, Field, Select, toast } from "@drinks-on-chain/ui";
+import { SCENARIOS, getScenario, setScenario, type ScenarioName } from "@drinks-on-chain/mocks/browser";
+import { SCENARIO_DESCRIPTIONS } from "@drinks-on-chain/mocks/handlers";
+import { Alert, Card, CardHeader, Field, Select } from "@drinks-on-chain/ui";
 import { env } from "@/lib/env";
-import { errorMessage } from "@/lib/api/errors";
-import { useLogin } from "@/lib/auth/hooks";
 import { es } from "@/lib/i18n/es";
 
-const SCENARIO_LABELS: Record<ScenarioName, string> = {
-  normal: "Normal",
-  empty: "Listas vacías",
-  error: "Error del servidor (500)",
-  slow: "Lento (+2,5 s)",
-  offline: "Sin conexión",
-};
-
+// Panel de desarrollo: escenario de los mocks. El Marketplace no tiene usuarios de demo con los
+// que entrar (no hay sesión en esta ola).
 export function MocksPanel() {
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const login = useLogin();
   const [scenario, setScenarioState] = useState<ScenarioName>(() => getScenario());
 
   function changeScenario(value: string) {
     const next = value as ScenarioName;
     setScenario(next);
     setScenarioState(next);
-    queryClient.invalidateQueries();
-  }
-
-  function enterAs(email: string) {
-    login.mutate(
-      { email, password: DEMO_PASSWORD },
-      {
-        onSuccess: () => router.push("/"),
-        onError: (e) => toast({ title: errorMessage(e), tone: "danger" }),
-      },
-    );
+    void queryClient.invalidateQueries();
   }
 
   return (
     <main className="mx-auto grid max-w-(--doc-content-max) gap-6 p-6">
       <header className="grid gap-1">
-        <p className="text-2xs tracking-label text-fg-subtle uppercase">Solo desarrollo</p>
-        <h1 className="font-display text-3xl">{es.mocks.title}</h1>
+        <p className="m-0 text-2xs tracking-label text-fg-subtle uppercase">{es.mocks.eyebrow}</p>
+        <h1 className="m-0 font-display text-3xl">{es.mocks.title}</h1>
       </header>
 
-      {!env.mocks && (
-        <Alert tone="warning">
-          MSW está apagado. Arranca con <code>NEXT_PUBLIC_MOCKS=1</code> (<code>pnpm dev:mocks</code>) para usar este
-          panel.
-        </Alert>
-      )}
+      {!env.mocks && <Alert tone="warning">{es.mocks.off}</Alert>}
 
       <Card className="grid gap-4 p-6">
-        <CardHeader title={es.mocks.scenario} />
-        <div className="flex flex-wrap items-end gap-4">
-          <Field label={es.mocks.scenario} hideLabel className="w-72">
-            <Select
-              value={scenario}
-              onValueChange={changeScenario}
-              options={SCENARIOS.map((s) => ({ value: s, label: SCENARIO_LABELS[s] }))}
-            />
-          </Field>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              resetErpDb();
-              queryClient.invalidateQueries();
-              toast({ title: es.mocks.resetDone, tone: "success" });
-            }}
-          >
-            {es.mocks.reset}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              expireAccessTokens();
-              toast({ title: es.mocks.expireDone, tone: "info" });
-            }}
-          >
-            {es.mocks.expire}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="grid gap-4 p-6">
-        <CardHeader title={es.mocks.users} description={`Contraseña de todos: ${DEMO_PASSWORD}`} />
-        <DataTable
-          density="compact"
-          getRowId={(u) => u.key}
-          data={demoUsers}
-          columns={[
-            { id: "name", header: "Nombre", cell: (u) => u.fullName },
-            { id: "email", header: "Correo", cell: (u) => u.email },
-            {
-              id: "role",
-              header: "Rol",
-              // Rol en la organización activa (`DemoUser.role`, el de su membresía).
-              cell: (u) => (u.role ? <Badge>{es.roles[u.role] ?? u.role}</Badge> : "—"),
-            },
-            {
-              id: "organization",
-              header: "Organización activa",
-              cell: (u) =>
-                u.memberships.find((m) => m.organizationId === u.activeOrganizationId)?.organizationName ?? "—",
-            },
-            {
-              id: "memberships",
-              header: "Membresías",
-              align: "right",
-              cell: (u) => u.memberships.length,
-            },
-            {
-              id: "enter",
-              header: "",
-              align: "right",
-              cell: (u) => (
-                <Button size="sm" variant="secondary" onClick={() => enterAs(u.email)} disabled={login.isPending}>
-                  Entrar
-                </Button>
-              ),
-            },
-          ]}
-        />
+        <CardHeader title={es.mocks.scenario} description={es.mocks.note} />
+        <Field label={es.mocks.scenario} hideLabel className="w-full max-w-xl">
+          <Select
+            value={scenario}
+            onValueChange={changeScenario}
+            options={SCENARIOS.map((s) => ({ value: s, label: `${s} · ${SCENARIO_DESCRIPTIONS[s]}` }))}
+          />
+        </Field>
       </Card>
     </main>
   );

@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Spinner, Toaster } from "@drinks-on-chain/ui";
-import { bootstrapSession, setSessionEndedHandler } from "@/lib/api/client";
 import { env } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
 import { makeQueryClient } from "@/lib/query-client";
@@ -30,31 +28,14 @@ function MocksGate({ children }: { children: ReactNode }) {
 }
 
 /**
- * Recupera la sesión al arrancar (renovación con la cookie) y reacciona cuando termina:
- * caducada o revocada (reutilización del refresco, bloqueo) → login, que muestra el aviso
- * (`useSessionEndReason`). El aviso también aparece si la revocación se descubre al recargar.
+ * Sitio público: en esta ola no hay sesión, así que no se recupera nada al arrancar ni se
+ * redirige a ningún login (la cuenta por correo llega en la Ola 3, bloque 2B).
  */
-function SessionLifecycle() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    void bootstrapSession();
-  }, []);
-  useEffect(() => {
-    setSessionEndedHandler(() => {
-      queryClient.clear();
-      router.replace("/login");
-    });
-  }, [router, queryClient]);
-  return null;
-}
-
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(makeQueryClient);
   return (
     <MocksGate>
       <QueryClientProvider client={queryClient}>
-        <SessionLifecycle />
         {children}
         <Toaster />
       </QueryClientProvider>

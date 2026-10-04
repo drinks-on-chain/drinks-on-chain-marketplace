@@ -92,6 +92,30 @@ export function upstreamUrl(url: URL, origin: string): URL {
   return new URL(`${origin}${path}${url.search}`);
 }
 
+/**
+ * Cabeceras `X-DOC-*` con la IP del visitante firmada para una petición al backend, a partir de
+ * las cabeceras de la petición entrante. Las usan el proxy de `/api/v1/*` y las peticiones que
+ * hace el servidor de Next por cuenta de quien visita (p. ej. el pasaporte de un lote pintado en
+ * el servidor): así el límite de consultas del backend cuenta por la IP real, nunca por la del
+ * servidor. Sin secreto devuelve `{}` (sin firma el backend usa la IP de la conexión).
+ */
+export function signedClientHeaders(
+  incoming: Headers,
+  method: string,
+  pathWithQuery: string,
+  { secret: rawSecret, now }: { secret: string | undefined; now?: number },
+): Record<string, string> {
+  const secret = proxySecret(rawSecret);
+  if (!secret) return {};
+  const ip = clientIpFrom(incoming);
+  const timestamp = String(Math.floor((now ?? Date.now()) / 1000));
+  return {
+    [CLIENT_IP_HEADER]: ip,
+    [TIMESTAMP_HEADER]: timestamp,
+    [SIGNATURE_HEADER]: signProxyRequest(secret, method, pathWithQuery, ip, timestamp),
+  };
+}
+
 type ProxyEnv = { API_ORIGIN?: string; NEXT_PUBLIC_MOCKS?: string; PROXY_SHARED_SECRET?: string };
 
 export type ProxyOptions = {
@@ -133,17 +157,11 @@ export function proxyApiRequest(request: NextRequest, options: ProxyOptions = {}
   const headers = new Headers(request.headers);
   for (const name of PROXY_HEADERS) headers.delete(name);
 
-  const secret = proxySecret(env.PROXY_SHARED_SECRET);
-  if (secret) {
-    const ip = clientIpFrom(request.headers);
-    const timestamp = String(Math.floor((options.now ?? Date.now()) / 1000));
-    headers.set(CLIENT_IP_HEADER, ip);
-    headers.set(TIMESTAMP_HEADER, timestamp);
-    headers.set(
-      SIGNATURE_HEADER,
-      signProxyRequest(secret, request.method, `${target.pathname}${target.search}`, ip, timestamp),
-    );
-  }
+  const signed = signedClientHeaders(request.headers, request.method, `${target.pathname}${target.search}`, {
+    secret: env.PROXY_SHARED_SECRET,
+    now: options.now,
+  });
+  for (const [name, value] of Object.entries(signed)) headers.set(name, value);
 
   return NextResponse.rewrite(target, { request: { headers } });
 }

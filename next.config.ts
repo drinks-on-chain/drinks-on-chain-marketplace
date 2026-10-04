@@ -12,6 +12,11 @@ const typegenOnly = process.argv.includes("typegen");
 if (!typegenOnly) resolveApiOrigin();
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    // URL del QR que imprimía el backend antiguo (contrato de la Ola 2 §12.5, punto 9): 308 al
+    // visor, que normaliza el código.
+    return [{ source: "/trace/batch/:lotCode", destination: "/b/:lotCode", permanent: true }];
+  },
   async headers() {
     // Las respuestas de la API reescrita nunca se guardan en la caché de Vercel
     return [

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { devToolsEnabled } from "@/lib/env";
 import { MocksPanel } from "./mocks-panel";
 
-export const metadata: Metadata = { title: "Datos de prueba" };
+export const metadata: Metadata = { title: "Datos de prueba", robots: { index: false, follow: false } };
 
 // /__mocks: solo en desarrollo o en demos con NEXT_PUBLIC_MOCKS=1 (08 §6).
 export default function MocksPage() {

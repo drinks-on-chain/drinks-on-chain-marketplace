@@ -9,14 +9,17 @@ importers:
   .:
     dependencies:
       '@drinks-on-chain/mocks':
-        specifier: https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.4.0/drinks-on-chain-mocks-0.4.0.tgz
-        version: https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.4.0/drinks-on-chain-mocks-0.4.0.tgz(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(zod@4.6.5)
+        specifier: https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.5.0-rc.3/drinks-on-chain-mocks-0.5.0-rc.3.tgz
+        version: https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.5.0-rc.3/drinks-on-chain-mocks-0.5.0-rc.3.tgz(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(zod@4.6.5)
       '@drinks-on-chain/ui':
         specifier: https://github.com/drinks-on-chain/drinks-on-chain-design-system/releases/download/v0.3.1/drinks-on-chain-ui-0.3.1.tgz
         version: https://github.com/drinks-on-chain/drinks-on-chain-design-system/releases/download/v0.3.1/drinks-on-chain-ui-0.3.1.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       '@tanstack/react-query':
         specifier: ^5.103.2
         version: 5.103.2(react@19.2.8)
+      lucide-react:
+        specifier: ^1.48.0
+        version: 1.48.0(react@19.2.8)
       msw:
         specifier: ^2.15.0
         version: 2.15.0(@types/node@20.19.43)(typescript@5.9.3)
@@ -33,6 +36,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.13.0
+        version: 4.13.0(playwright-core@1.63.0)
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
@@ -101,6 +107,11 @@ packages:
   '@asamuzakjp/dom-selector@9.2.1':
     resolution: {integrity: sha512-NT4s3yZLjovPpliRpTvdsdzyPjqRqiCZj9MxnarBihbaY5MbAG7DWAJcrLlhmC7xKTNCXsTELcqB8YsqpLnUFQ==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
+
+  '@axe-core/playwright@4.13.0':
+    resolution: {integrity: sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -213,9 +224,9 @@ packages:
     resolution: {integrity: sha512-bPlN9S9O1A0euCpEWE4qnvB5YDuyYVsUTrxSgmAM1Is0j4tICHoVyOVAXfWMP/kS9ZrjvyIXWV2PmomiAXXqOw==}
     engines: {node: '>=20.19.0'}
 
-  '@drinks-on-chain/mocks@https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.4.0/drinks-on-chain-mocks-0.4.0.tgz':
-    resolution: {integrity: sha512-jX7j9wpA55MD2OKMF0Qrpq67V3mzFHPt449QmFOR2Wu51EpagXRbh4ZLZ4J5x3Y4MXQg6ZDsmHKPRxw/acolNw==, tarball: https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.4.0/drinks-on-chain-mocks-0.4.0.tgz}
-    version: 0.4.0
+  '@drinks-on-chain/mocks@https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.5.0-rc.3/drinks-on-chain-mocks-0.5.0-rc.3.tgz':
+    resolution: {tarball: https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.5.0-rc.3/drinks-on-chain-mocks-0.5.0-rc.3.tgz}
+    version: 0.5.0-rc.3
     engines: {node: '>=22'}
     peerDependencies:
       msw: ^2.10.0
@@ -3719,6 +3730,11 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.3
 
+  '@axe-core/playwright@4.13.0(playwright-core@1.63.0)':
+    dependencies:
+      axe-core: 4.13.0
+      playwright-core: 1.63.0
+
   '@babel/code-frame@7.29.7':
     dependencies:
       '@babel/helper-validator-identifier': 7.29.7
@@ -3849,7 +3865,7 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.1': {}
 
-  '@drinks-on-chain/mocks@https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.4.0/drinks-on-chain-mocks-0.4.0.tgz(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(zod@4.6.5)':
+  '@drinks-on-chain/mocks@https://github.com/drinks-on-chain/drinks-on-chain-mocks/releases/download/v0.5.0-rc.3/drinks-on-chain-mocks-0.5.0-rc.3.tgz(msw@2.15.0(@types/node@20.19.43)(typescript@5.9.3))(zod@4.6.5)':
     dependencies:
       zod: 4.6.5
     optionalDependencies:
