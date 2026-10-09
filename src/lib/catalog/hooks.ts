@@ -24,10 +24,11 @@ export function useCollections(filters: CollectionFilters = {}, { limit = CATALO
 }
 
 /** Ficha de una colección. */
-export function useCollection(slug: string) {
+export function useCollection(slug: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["public", "collections", "detail", slug] as const,
     queryFn: ({ signal }) => fetchCollection(slug, signal),
+    enabled,
     staleTime: 60_000,
     retry,
   });

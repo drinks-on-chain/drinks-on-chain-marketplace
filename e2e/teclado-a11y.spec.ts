@@ -35,7 +35,6 @@ const PAGES: { name: string; path: string; ready: string }[] = [
   { name: "ficha de colección", path: `/colecciones/${CASE.collectionSlug}`, ready: "El lote, paso a paso" },
   { name: "ficha sin precio", path: `/colecciones/${NO_PRICE_COLLECTION.slug}`, ready: "El lote, paso a paso" },
   { name: "ficha de preventa real", path: "/colecciones/singani-preventa-2026", ready: "El lote, paso a paso" },
-  { name: "pasaporte de lote anclado", path: `/b/${CASE.lotCode}`, ready: "Reglas con las que se hizo el lote" },
   { name: "bodegas", path: "/bodegas", ready: CASE.winery },
   { name: "bodega", path: `/bodegas/${CASE.winerySlug}`, ready: "Colecciones de esta bodega" },
   { name: "no encontrado", path: "/no-existe", ready: "Página no encontrada" },

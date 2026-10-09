@@ -7,11 +7,12 @@ import { Badge, Button, EmptyState, ErrorState, Skeleton, TextLink } from "@drin
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import type { Collection } from "@/lib/catalog/api";
 import { useCollection } from "@/lib/catalog/hooks";
-import { availableOf, editionSizeOf, isSoldOut, saleStateOf } from "@/lib/catalog/sale";
+import { availableOf, editionSizeOf, isPurchasable, isSoldOut, saleStateOf } from "@/lib/catalog/sale";
 import { env } from "@/lib/env";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { es } from "@/lib/i18n/es";
 import { links, routes } from "@/lib/links";
+import { BuyButton } from "../checkout/checkout-sheet";
 import { CollectionArt, STATUS_TONE } from "../store/bottle-card";
 import { JourneyTimeline } from "../store/journey-timeline";
 import { PriceTag } from "../store/price-tag";
@@ -19,8 +20,9 @@ import { PriceTag } from "../store/price-tag";
 // 2A · Ficha de una colección.
 // [BORRADOR §13.1] Pinta el borrador del catálogo: precio que puede faltar, botellas disponibles
 // (`counts.available`), `saleState` PRESALE / ON_SALE / SOLD_OUT, la edición numerada («Botella N
-// de M») y la línea de tiempo del lote. Sin compra: la llamada a la acción es "Avísame", hacia la
-// lista de espera de la landing.
+// de M») y la línea de tiempo del lote. La llamada a la acción es "Avísame", hacia la lista de
+// espera de la landing; con la bandera de la cuenta (2C contra mocks) y una colección que se puede
+// comprar, es "Comprar" (`CheckoutSheet`).
 
 const t = es.catalog;
 
@@ -82,7 +84,10 @@ export function CollectionDetail({ collection }: { collection: Collection }) {
               </li>
               {collection.estimatedReadyDate ? <li>{t.readyDate(fmtDate(collection.estimatedReadyDate))}</li> : null}
             </ul>
-            {links.waitlist ? (
+            {env.account && isPurchasable(collection) ? (
+              // 2C (solo con la bandera de la cuenta): con precio y botellas disponibles, se compra.
+              <BuyButton collection={collection} />
+            ) : links.waitlist ? (
               <>
                 <Button asChild size="lg" block className="mt-2">
                   <a href={links.waitlist}>{t.notify}</a>
