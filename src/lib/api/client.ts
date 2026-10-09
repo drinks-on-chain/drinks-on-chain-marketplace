@@ -26,6 +26,8 @@ export type RequestOptions<T> = {
   schema?: z.ZodType<T>;
   /** false en rutas públicas (login, trazabilidad pública). */
   auth?: boolean;
+  /** `Idempotency-Key` de una escritura que no debe repetirse (pedidos; contrato de la Ola 0 §3). */
+  idempotencyKey?: string;
   signal?: AbortSignal;
 };
 
@@ -67,6 +69,7 @@ async function send(path: string, opts: RequestOptions<unknown>, token: string |
     body = JSON.stringify(opts.body);
   }
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
   try {
     return await fetch(buildUrl(path, opts.query), {
       method: opts.method ?? "GET",
@@ -270,7 +273,16 @@ export async function api<T = unknown>(path: string, opts: RequestOptions<T> = {
   if (!res.ok) throw await parseError(res, path);
   if (res.status === 204) return undefined as T;
 
-  const envelope = successEnvelope.safeParse(await res.json());
+  // Un 202 puede llegar sin cuerpo ("aceptado": recuperar contraseña, reenviar verificación).
+  const text = await res.text();
+  if (!text.trim() && !opts.schema) return undefined as T;
+  let json: unknown = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // Se trata abajo como una respuesta que no cumple el contrato.
+  }
+  const envelope = successEnvelope.safeParse(json);
   if (!envelope.success) throw new ContractError(path, envelope.error.issues);
   if (!opts.schema) return envelope.data.data as T;
 
