@@ -21,9 +21,10 @@ test("portada: marca, verificar una botella, destacados del catálogo y bodegas"
   await expect(featured.getByRole("link", { name: "Ver todo el catálogo" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Las bodegas" })).toBeVisible();
 
-  // Sitio público: nadie entra ni se le manda a un login.
+  // Sitio público: a nadie se le manda a un login. Con la bandera de la cuenta (como corren estas
+  // pruebas) «Entrar» se ofrece en la cabecera de escritorio; apagada, ni eso (`sin-cuenta.spec.ts`).
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: /Entrar/ })).toHaveCount(0);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Entrar" })).toHaveCount(isMobile(page) ? 0 : 1);
 
   await expectNoHorizontalScroll(page);
   expect(errors).toEqual([]);
@@ -44,7 +45,9 @@ test("StoreShell: pestañas inferiores en móvil, cabecera en escritorio", async
   if (isMobile(page)) {
     await expect(tabs).toBeVisible();
     await expect(header).toBeHidden();
-    await expect(tabs.getByRole("link")).toHaveText(["Inicio", "Catálogo", "Verificar", "Bodegas"]);
+    // «Cuenta» solo existe con la bandera de la cuenta, que estas pruebas llevan encendida
+    // (apagada: `sin-cuenta.spec.ts`).
+    await expect(tabs.getByRole("link")).toHaveText(["Inicio", "Catálogo", "Verificar", "Bodegas", "Cuenta"]);
     await expect(tabs.getByRole("link", { name: "Inicio" })).toHaveAttribute("aria-current", "page");
     // Objetivos táctiles de al menos 44 px.
     for (const link of await tabs.getByRole("link").all()) {

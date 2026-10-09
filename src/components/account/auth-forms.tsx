@@ -243,7 +243,8 @@ export function SignupForm({ onAuthenticated, onSwitch }: { onAuthenticated: () 
           checked={ageDeclaration}
           onCheckedChange={(checked) => setAgeDeclaration(checked === true)}
           invalid={Boolean(errors.ageDeclaration)}
-          aria-describedby={errors.ageDeclaration ? "error-ageDeclaration" : undefined}
+          // La ayuda de la casilla (id que le pone `Checkbox`) y, si lo hay, su error.
+          aria-describedby={`campo-ageDeclaration-description${errors.ageDeclaration ? " error-ageDeclaration" : ""}`}
           className="min-h-11"
         />
         {errors.ageDeclaration ? (

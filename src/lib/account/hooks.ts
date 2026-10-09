@@ -67,14 +67,18 @@ export function useConsumerProfile() {
   });
 }
 
+// Al entrar se olvida lo de una sesión anterior **antes** de abrir la nueva: si se hiciera
+// después, se borraría la consulta del perfil que arranca en cuanto hay sesión y su pantalla se
+// quedaría cargando.
+
 export function useLogin() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: login, onSuccess: () => forgetAccount(queryClient) });
+  return useMutation({ mutationFn: login, onMutate: () => forgetAccount(queryClient) });
 }
 
 export function useSignup() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: signup, onSuccess: () => forgetAccount(queryClient) });
+  return useMutation({ mutationFn: signup, onMutate: () => forgetAccount(queryClient) });
 }
 
 export function useLogout() {
@@ -88,5 +92,5 @@ export const useResendVerification = () => useMutation({ mutationFn: resendVerif
 
 export function useVerifyEmail() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: verifyEmail, onSuccess: () => forgetAccount(queryClient) });
+  return useMutation({ mutationFn: verifyEmail, onMutate: () => forgetAccount(queryClient) });
 }

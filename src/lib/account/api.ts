@@ -6,7 +6,7 @@ import {
 } from "@drinks-on-chain/mocks";
 import { api, logoutSession } from "@/lib/api/client";
 import { ContractError } from "@/lib/api/errors";
-import { setSession } from "@/lib/api/session";
+import { clearSession, setSession } from "@/lib/api/session";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // 2B · Cuenta por correo (A-13). Solo existe con la bandera `NEXT_PUBLIC_MK_ACCOUNT`.
@@ -44,12 +44,14 @@ async function openSession(path: string, data: unknown): Promise<void> {
   const parsed = SessionResponseSchema.safeParse(data);
   if (!parsed.success) throw new ContractError(path, parsed.error.issues);
   const session: SessionResponse = parsed.data;
-  setSession({ accessToken: session.tokens.accessToken, expiresIn: session.tokens.expiresIn });
   if (session.user.audience !== "CONSUMER") {
-    // El backend abrió una sesión de personal: se cierra, aquí no se usa.
-    await logoutSession();
+    // El backend abrió una sesión de personal. Aquí no llega a abrirse (ninguna pantalla la ve):
+    // se pide al backend que la cierre con su cookie de renovación y se queda sin sesión.
+    await api("/v1/auth/logout", { method: "POST", auth: false }).catch(() => undefined);
+    clearSession();
     throw new NotConsumerError();
   }
+  setSession({ accessToken: session.tokens.accessToken, expiresIn: session.tokens.expiresIn });
 }
 
 /** `POST /v1/auth/login`: abre la sesión (acceso en memoria, renovación en la cookie `doc_rt`). */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { Minus, Plus } from "lucide-react";
 import {
@@ -35,11 +35,20 @@ const t = es.checkout;
 
 type Step = "quantity" | "account" | "order";
 
-/** Título de cada paso: recibe el foco al cambiar de paso, para que se anuncie. */
+/** ¿La persona ya hizo algo en la hoja desde que se abrió? */
+const InteractedContext = createContext(false);
+
+/**
+ * Título de cada paso: recibe el foco al cambiar de paso, para que se anuncie. Al abrir la hoja
+ * no: el foco inicial es del diálogo, que así sabe a qué botón devolverlo al cerrarse.
+ */
 function StepHeading({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLHeadingElement>(null);
+  const interacted = useContext(InteractedContext);
   useEffect(() => {
-    ref.current?.focus();
+    if (interacted) ref.current?.focus();
+    // Solo al montarse el paso.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <h3 ref={ref} tabIndex={-1} className="m-0 font-ui text-lg font-semibold outline-none">
@@ -237,6 +246,7 @@ export function CheckoutSheet({ collection, open, onOpenChange }: CheckoutSheetP
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [interacted, setInteracted] = useState(false);
   const order = useOrder(step === "order" ? orderId : null);
   // Una clave por intento de compra: un doble envío o un reintento de red no crean dos pedidos.
   const attemptKey = useRef<string>(crypto.randomUUID());
@@ -290,6 +300,7 @@ export function CheckoutSheet({ collection, open, onOpenChange }: CheckoutSheetP
     // espera el pago se conserva: se puede seguir aquí o desde «Mis pedidos».
     if (!next && order.data && orderPhase(order.data) !== "awaiting") startOver();
     if (!next && step === "account") setStep("quantity");
+    if (!next) setInteracted(false);
     onOpenChange(next);
   }
 
@@ -305,54 +316,60 @@ export function CheckoutSheet({ collection, open, onOpenChange }: CheckoutSheetP
       maxHeight="tall"
       bodyClassName="font-ui"
     >
-      <div className="grid gap-5">
-        <Stepper
-          aria-label={t.stepsLabel}
-          current={current}
-          completedLabel={t.stepDone}
-          steps={[{ label: t.steps.quantity }, { label: t.steps.payment }, { label: t.steps.confirmation }]}
-        />
-
-        {step === "quantity" ? (
-          <QuantityStep
-            collection={collection}
-            value={quantityText}
-            onChange={changeQuantity}
-            maxPerOrder={maxPerOrder}
-            error={fieldError}
-            formError={formError}
-            pending={createOrder.isPending || status === "unknown"}
-            onSubmit={submitQuantity}
+      <InteractedContext.Provider value={interacted}>
+        <div
+          className="grid gap-5"
+          onPointerDownCapture={() => setInteracted(true)}
+          onKeyDownCapture={() => setInteracted(true)}
+        >
+          <Stepper
+            aria-label={t.stepsLabel}
+            current={current}
+            completedLabel={t.stepDone}
+            steps={[{ label: t.steps.quantity }, { label: t.steps.payment }, { label: t.steps.confirmation }]}
           />
-        ) : null}
 
-        {step === "account" ? (
-          <div className="grid gap-4">
-            <StepHeading>{t.account.title}</StepHeading>
-            <p className="m-0 text-md text-fg-muted">{t.account.body}</p>
-            <AuthPanel
-              onAuthenticated={() => {
-                // Con la sesión abierta se sigue con el pedido que ya se había pedido.
-                const quantity = parseQuantity(quantityText, max);
-                setStep("quantity");
-                if (quantity !== null) placeOrder(quantity);
-              }}
+          {step === "quantity" ? (
+            <QuantityStep
+              collection={collection}
+              value={quantityText}
+              onChange={changeQuantity}
+              maxPerOrder={maxPerOrder}
+              error={fieldError}
+              formError={formError}
+              pending={createOrder.isPending || status === "unknown"}
+              onSubmit={submitQuantity}
             />
-            <Button variant="tertiary" size="lg" onClick={() => setStep("quantity")} className="justify-self-start">
-              {t.account.back}
-            </Button>
-          </div>
-        ) : null}
+          ) : null}
 
-        {step === "order" && orderId ? (
-          <OrderStep
-            orderId={orderId}
-            editionSize={editionSizeOf(collection)}
-            onRetry={startOver}
-            onClose={() => change(false)}
-          />
-        ) : null}
-      </div>
+          {step === "account" ? (
+            <div className="grid gap-4">
+              <StepHeading>{t.account.title}</StepHeading>
+              <p className="m-0 text-md text-fg-muted">{t.account.body}</p>
+              <AuthPanel
+                onAuthenticated={() => {
+                  // Con la sesión abierta se sigue con el pedido que ya se había pedido.
+                  const quantity = parseQuantity(quantityText, max);
+                  setStep("quantity");
+                  if (quantity !== null) placeOrder(quantity);
+                }}
+              />
+              <Button variant="tertiary" size="lg" onClick={() => setStep("quantity")} className="justify-self-start">
+                {t.account.back}
+              </Button>
+            </div>
+          ) : null}
+
+          {step === "order" && orderId ? (
+            <OrderStep
+              orderId={orderId}
+              editionSize={editionSizeOf(collection)}
+              onRetry={startOver}
+              onClose={() => change(false)}
+            />
+          ) : null}
+        </div>
+      </InteractedContext.Provider>
     </BottomSheet>
   );
 }

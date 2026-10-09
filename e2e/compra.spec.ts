@@ -28,6 +28,8 @@ async function loggedInAtCollection(page: Page) {
 test("comprar sin sesión: la cuenta se abre dentro del flujo y el pago recibido va antes que las botellas", async ({
   page,
 }) => {
+  // Recorrido largo, con varias auditorías axe: tres veces el tiempo por prueba.
+  test.slow();
   const errors = trackErrors(page);
   await openCheckout(page);
   const dialog = sheet(page);
@@ -107,6 +109,8 @@ test("comprar sin sesión: la cuenta se abre dentro del flujo y el pago recibido
 test("máximo por compra: el servidor lo dice y el campo lo recuerda; pago rechazado y nuevo intento", async ({
   page,
 }) => {
+  // Recorrido largo, con varias auditorías axe: tres veces el tiempo por prueba.
+  test.slow();
   const errors = trackErrors(page);
   await loggedInAtCollection(page);
   const dialog = sheet(page);
@@ -147,6 +151,8 @@ test("máximo por compra: el servidor lo dice y el campo lo recuerda; pago recha
 });
 
 test("reserva caducada: se dice y se puede empezar de nuevo; el pedido queda en el historial", async ({ page }) => {
+  // Recorrido largo, con varias auditorías axe: tres veces el tiempo por prueba.
+  test.slow();
   const errors = trackErrors(page);
   await loggedInAtCollection(page);
   const dialog = sheet(page);

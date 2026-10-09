@@ -185,7 +185,9 @@ test("verificar el correo: pedir el enlace, confirmarlo y que no valga dos veces
 
   await emailField(page).fill(CONSUMER.email);
   await page.getByRole("button", { name: "Enviar otro enlace" }).click();
-  await expect(page.getByText(/te enviamos otro enlace/)).toBeVisible();
+  await expect(
+    page.getByText("Si ese correo tiene una cuenta pendiente de confirmar, te enviamos otro enlace."),
+  ).toBeVisible();
 
   const mail = await latestMail(page, CONSUMER.email, "EMAIL_VERIFY");
   expect(mail.link).toContain("/verificar-correo?token=");
