@@ -76,6 +76,9 @@ test("catálogo: filtro por bodega y orden, en la URL", async ({ page }) => {
   await expect(count(page)).toHaveText(CATALOG.where((c) => c.winery.slug === "altos-de-calamuchita"));
   await expect(cards(page).first()).toContainText("Bodega Altos de Calamuchita");
   await page.getByRole("button", { name: "Quitar filtros" }).click();
+  // Se espera a que el filtro salga de la URL antes de seguir (el cambio de ruta no es inmediato).
+  await expect(page).toHaveURL(/\/catalogo$/);
+  await expect(count(page)).toHaveText(CATALOG.total);
 
   // El orden lo aplica el catálogo (`?sort=`); el de por defecto no se escribe en la URL.
   await page.getByRole("combobox", { name: "Ordenar por" }).selectOption({ label: "Precio: de menor a mayor" });
