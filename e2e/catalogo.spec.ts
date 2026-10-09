@@ -97,9 +97,9 @@ test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin comp
 
   await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
   await expect(page.getByText("Singani · Añada 2026")).toBeVisible();
-  await expect(page.getByText(/^Bs\s185$/)).toBeVisible();
+  await expect(page.getByText(/^Bs\s280$/)).toBeVisible();
   await expect(page.getByText("A la venta", { exact: true })).toBeVisible();
-  await expect(page.getByText(/^Quedan [\d.]+ de 2\.950 botellas$/)).toBeVisible();
+  await expect(page.getByText(/^Quedan [\d.]+ de 60 botellas$/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Notas de cata" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Maridaje" })).toBeVisible();
 
