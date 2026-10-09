@@ -21,7 +21,7 @@ import { availableOf, editionSizeOf } from "@/lib/catalog/sale";
 import { fmtBob, fmtNumber } from "@/lib/format";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
-import { useCreateOrder, useOrder } from "@/lib/orders/hooks";
+import { useCreateOrder, useOrder, usePurchaseSettings } from "@/lib/orders/hooks";
 import { maxQuantity, orderFailure, orderPhase, parseQuantity } from "@/lib/orders/status";
 import { AuthPanel } from "../account/auth-forms";
 import { OrderBottles, OrderEnded, PaymentPanel, PaymentReceived } from "./order-parts";
@@ -62,6 +62,7 @@ function QuantityStep({
   value,
   onChange,
   maxPerOrder,
+  reservationMinutes,
   error,
   formError,
   pending,
@@ -71,6 +72,7 @@ function QuantityStep({
   value: string;
   onChange: (value: string) => void;
   maxPerOrder: number | null;
+  reservationMinutes: number | null;
   error: string | null;
   formError: string | null;
   pending: boolean;
@@ -147,7 +149,9 @@ function QuantityStep({
           </dd>
         </div>
       </dl>
-      <p className="m-0 text-sm text-fg-muted">{t.quantity.reserveNote}</p>
+      <p className="m-0 text-sm text-fg-muted">
+        {reservationMinutes === null ? t.quantity.reserveNote : t.quantity.reserveNoteMinutes(reservationMinutes)}
+      </p>
       <Button type="submit" size="lg" block loading={pending}>
         {t.quantity.continue}
       </Button>
@@ -242,7 +246,12 @@ export function CheckoutSheet({ collection, open, onOpenChange }: CheckoutSheetP
   const createOrder = useCreateOrder();
   const [step, setStep] = useState<Step>("quantity");
   const [quantityText, setQuantityText] = useState("1");
-  const [maxPerOrder, setMaxPerOrder] = useState<number | null>(null);
+  // El máximo por compra llega de la configuración pública; si el servidor rechaza un pedido con
+  // otro máximo (cambió, o la configuración no respondió), manda el que diga el rechazo.
+  const settings = usePurchaseSettings(open);
+  const [learnedMax, setLearnedMax] = useState<number | null>(null);
+  const maxPerOrder = learnedMax ?? settings.data?.maxBottlesPerOrder ?? null;
+  const reservationMinutes = settings.data?.reservationMinutes ?? null;
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -271,7 +280,7 @@ export function CheckoutSheet({ collection, open, onOpenChange }: CheckoutSheetP
         },
         onError: (error) => {
           const failure = orderFailure(error);
-          if (failure.maxPerOrder !== undefined) setMaxPerOrder(failure.maxPerOrder);
+          if (failure.maxPerOrder !== undefined) setLearnedMax(failure.maxPerOrder);
           setFieldError(failure.field ? failure.message : null);
           setFormError(failure.field ? null : failure.message);
           setStep("quantity");
@@ -335,6 +344,7 @@ export function CheckoutSheet({ collection, open, onOpenChange }: CheckoutSheetP
               value={quantityText}
               onChange={changeQuantity}
               maxPerOrder={maxPerOrder}
+              reservationMinutes={reservationMinutes}
               error={fieldError}
               formError={formError}
               pending={createOrder.isPending || status === "unknown"}

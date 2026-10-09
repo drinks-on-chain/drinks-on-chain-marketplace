@@ -20,8 +20,15 @@ export const routes = {
   lotFromBottle: (lotCode: string, bottleCode: string) =>
     `/b/${encodeURIComponent(lotCode)}?${FROM_BOTTLE_PARAM}=${encodeURIComponent(bottleCode)}`,
   catalog: "/catalogo",
-  /** Ficha de una colección (hasta la Ola 2 vivía en `/catalogo/{slug}`, que redirige aquí). */
-  collection: (slug: string) => `/colecciones/${encodeURIComponent(slug)}`,
+  /**
+   * Ficha de una colección: `/colecciones/{slugBodega}/{slug}`. El `slug` de una colección es único
+   * **por bodega** (mocks 0.6.0-rc.2), y esta es la ruta que el backend escribe en `external_url`
+   * de cada NFT.
+   */
+  collection: (winerySlug: string, slug: string) =>
+    `/colecciones/${encodeURIComponent(winerySlug)}/${encodeURIComponent(slug)}`,
+  /** Dirección antigua, solo con el `slug`: redirige si una sola bodega tiene esa colección. */
+  collectionBySlug: (slug: string) => `/colecciones/${encodeURIComponent(slug)}`,
   wineries: "/bodegas",
   winery: (slug: string) => `/bodegas/${encodeURIComponent(slug)}`,
   // Cuenta por correo (2B) y pedidos (2C): solo existen con la bandera `NEXT_PUBLIC_MK_ACCOUNT`.

@@ -3,7 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ACCOUNT_KEY, useSessionStatus } from "@/lib/account/hooks";
 import { ApiError } from "@/lib/api/errors";
-import { createOrder, fetchOrder, fetchOrders, simulatePayment, type Order, type PaymentOutcome } from "./api";
+import {
+  createOrder,
+  fetchOrder,
+  fetchOrders,
+  fetchPurchaseSettings,
+  simulatePayment,
+  type Order,
+  type PaymentOutcome,
+} from "./api";
 import { isOrderOpen } from "./status";
 
 // [BORRADOR §13.1] Hooks de la compra: ver el aviso de `api.ts`. Cuelgan de `ACCOUNT_KEY`, así
@@ -17,6 +25,20 @@ export const ORDERS_PAGE_SIZE = 20;
 export const ORDER_POLL_MS = 3_000;
 
 const retry = (count: number, error: unknown) => !(error instanceof ApiError && error.status < 500) && count < 2;
+
+/**
+ * Reglas de la compra (máximo por pedido, minutos de reserva). Solo se piden al abrir la hoja de
+ * compra; si fallan, la compra sigue y el servidor hace valer el máximo al crear el pedido.
+ */
+export function usePurchaseSettings(enabled: boolean) {
+  return useQuery({
+    queryKey: ["public", "purchase-settings"] as const,
+    queryFn: ({ signal }) => fetchPurchaseSettings(signal),
+    enabled,
+    staleTime: 300_000,
+    retry,
+  });
+}
 
 /** Historial de pedidos de quien tiene la sesión. */
 export function useOrders(offset = 0) {

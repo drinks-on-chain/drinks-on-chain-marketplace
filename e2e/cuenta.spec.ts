@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { axe, expectNoHorizontalScroll, hasVisibleFocus, isMobile, shellNav, trackErrors } from "./support";
-import { CONSUMER, STAFF, latestMail, login, signup } from "./support-cuenta";
+import { CONSUMER, NEW_PASSWORD, STAFF, latestMail, login, signup } from "./support-cuenta";
 
 // 2B · Cuenta por correo contra los mocks (bandera `NEXT_PUBLIC_MK_ACCOUNT=1`): alta con términos,
 // mayoría de edad, captcha de prueba y campo trampa; entrada; perfil con la dirección informativa
@@ -10,7 +10,10 @@ const emailField = (page: Page) => page.getByRole("textbox", { name: /Correo ele
 const passwordField = (page: Page) => page.getByLabel(/^Contraseña/);
 const formAlert = (page: Page) => page.getByRole("main").getByRole("alert");
 
-test("crear cuenta: declaraciones obligatorias, perfil y dirección informativa de solo lectura", async ({ page }) => {
+test("crear cuenta: declaraciones obligatorias, correo por confirmar, perfil y dirección de solo lectura", async ({
+  page,
+}) => {
+  test.slow();
   const errors = trackErrors(page);
   await page.goto("/crear-cuenta");
   await expect(page.getByRole("heading", { level: 1, name: "Crear cuenta" })).toBeVisible();
@@ -19,8 +22,9 @@ test("crear cuenta: declaraciones obligatorias, perfil y dirección informativa 
 
   // Sin las dos declaraciones no se envía, y cada casilla dice por qué.
   await page.getByRole("textbox", { name: /Nombre completo/ }).fill("Lucía Vargas");
-  await emailField(page).fill(`lucia.${test.info().project.name}@ejemplo.test`);
-  await passwordField(page).fill("una-clave-larga-2026");
+  const email = `lucia.${test.info().project.name}@ejemplo.test`;
+  await emailField(page).fill(email);
+  await passwordField(page).fill(NEW_PASSWORD);
   await page.getByRole("button", { name: "Crear cuenta" }).click();
   await expect(page.getByText("Para crear la cuenta tienes que aceptar el aviso legal")).toBeVisible();
   await expect(page.getByText("Para crear la cuenta tienes que declarar que eres mayor de 18 años.")).toBeVisible();
@@ -32,10 +36,29 @@ test("crear cuenta: declaraciones obligatorias, perfil y dirección informativa 
   await page.getByRole("checkbox", { name: /mayor de 18 años/ }).check();
   await page.getByRole("button", { name: "Crear cuenta" }).click();
 
-  // Con el OpenAPI vigente el alta abre la sesión: se llega al perfil.
+  // [BORRADOR §13.1] El alta no abre sesión: pide confirmar el correo.
+  await expect(page.getByText("Revisa tu correo")).toBeVisible();
+  await expect(page.getByText(`Te enviamos un enlace a ${email}`, { exact: false })).toBeVisible();
+  await expect(page).toHaveURL(/\/crear-cuenta$/);
+  expect(await axe(page)).toEqual([]);
+  const mail = await latestMail(page, email, "EMAIL_VERIFY");
+  expect(mail.link).toContain("/verificar-correo?token=");
+
+  // Sin confirmar se puede entrar, y el perfil lo dice.
+  await page.getByRole("button", { name: "Entrar con mi cuenta" }).click();
+  await login(page, { email, password: NEW_PASSWORD });
   await expect(page).toHaveURL(/\/cuenta$/);
   await expect(page.getByRole("heading", { level: 1, name: "Mi cuenta" })).toBeVisible();
   await expect(page.getByText("Lucía Vargas")).toBeVisible();
+  await expect(page.getByText("Correo sin confirmar")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Pedir otro enlace" })).toBeVisible();
+
+  // El enlace del correo lo confirma (la sesión se recupera tras la recarga).
+  await page.goto(`/verificar-correo?token=${encodeURIComponent(mail.token)}`);
+  await expect(page.getByText("Correo confirmado")).toBeVisible();
+  await page.goto("/cuenta");
+  await expect(page.getByText("Correo confirmado")).toBeVisible();
+  await expect(page.getByText("Correo sin confirmar")).toHaveCount(0);
 
   const address = page.getByRole("region", { name: "Tu dirección en la red" });
   await expect(address).toContainText("La gestiona Drinks on Chain; no necesitas hacer nada.");
@@ -177,6 +200,7 @@ test("un enlace de recuperación sin código, o que ya no vale, lo dice y deja p
 });
 
 test("verificar el correo: pedir el enlace, confirmarlo y que no valga dos veces", async ({ page }) => {
+  test.slow();
   const errors = trackErrors(page);
   await page.goto("/verificar-correo");
   await expect(page.getByRole("heading", { level: 1, name: "Confirmar correo" })).toBeVisible();

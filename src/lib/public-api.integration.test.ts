@@ -6,7 +6,7 @@ import { PUBLIC_LOOKUP_LIMIT } from "@drinks-on-chain/mocks/handlers";
 import { resetErpDb, resetScenario, setScenario, setupMockServer } from "@drinks-on-chain/mocks/node";
 import { HttpResponse, http } from "msw";
 import { ApiError } from "@/lib/api/errors";
-import { fetchCollection, fetchCollections, isCatalogUnavailable } from "@/lib/catalog/api";
+import { fetchCollection, fetchCollections, findCollectionsBySlug, isCatalogUnavailable } from "@/lib/catalog/api";
 import { anchorChecks, anchorStage, recomputeFingerprint } from "@/lib/passport/anchor";
 import {
   fetchCanonicalDossier,
@@ -285,19 +285,47 @@ describe("catálogo (BORRADOR §17.1)", () => {
   });
 
   it("la ficha trae la línea de tiempo del lote; el precio puede faltar", async () => {
-    const collection = await fetchCollection("singani-gran-reserva-2026");
+    const collection = await fetchCollection("destileria-cinti-viejo", "singani-gran-reserva-2026");
     expect(collection.lot.lotCode).toBe(CASE_LOT);
     expect(collection.lot.timeline.length).toBeGreaterThan(0);
 
     const withoutPrice = publicFixtures.collections.find((c) => c.price === null)!;
-    await expect(fetchCollection(withoutPrice.slug)).resolves.toMatchObject({ price: null, status: "PRESALE" });
+    await expect(fetchCollection(withoutPrice.winery.slug, withoutPrice.slug)).resolves.toMatchObject({
+      price: null,
+      status: "PRESALE",
+    });
   });
 
   it("un catálogo que el backend aún no publica (404 o 501) no es un error de la pantalla", async () => {
     expect(isCatalogUnavailable(new ApiError({ status: 404, code: "NOT_FOUND", message: "" }))).toBe(true);
     expect(isCatalogUnavailable(new ApiError({ status: 501, code: "NOT_IMPLEMENTED", message: "" }))).toBe(true);
     expect(isCatalogUnavailable(new ApiError({ status: 500, code: "INTERNAL_ERROR", message: "" }))).toBe(false);
-    await expect(fetchCollection("no-existe")).rejects.toMatchObject({ status: 404 });
+    await expect(fetchCollection("destileria-cinti-viejo", "no-existe")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("el `slug` es único por bodega: la ficha se pide con la bodega, y la dirección antigua solo vale sin ambigüedad", async () => {
+    const [altos, cinti] = await Promise.all([
+      fetchCollection("altos-de-calamuchita", "singani-preventa-2026"),
+      fetchCollection("destileria-cinti-viejo", "singani-preventa-2026"),
+    ]);
+    expect(altos.id).not.toBe(cinti.id);
+    expect(altos.winery.slug).toBe("altos-de-calamuchita");
+    expect(cinti.price).toBeNull();
+    // La colección de una bodega no existe bajo otra.
+    await expect(fetchCollection("altos-de-calamuchita", "singani-gran-reserva-2026")).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await findCollectionsBySlug("singani-preventa-2026")).map((c) => c.winery.slug).sort()).toEqual([
+      "altos-de-calamuchita",
+      "destileria-cinti-viejo",
+    ]);
+    expect((await findCollectionsBySlug("singani-gran-reserva-2026")).map((c) => c.winery.slug)).toEqual([
+      "destileria-cinti-viejo",
+    ]);
+    await expect(findCollectionsBySlug("no-existe")).resolves.toEqual([]);
+    // Los `id` del catálogo no se repiten (son la clave de las listas).
+    const ids = (await fetchCollections({}, { limit: 100 })).items.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

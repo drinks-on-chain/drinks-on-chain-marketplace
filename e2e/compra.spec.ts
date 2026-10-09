@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { CASE, NO_PRICE_COLLECTION, axe, expectNoHorizontalScroll, trackErrors } from "./support";
-import { CONSUMER, login, signup } from "./support-cuenta";
+import { CONSUMER, NEW_PASSWORD, fillSignup, login, signup } from "./support-cuenta";
 
 // 2C · Compra contra los mocks del borrador de la Etapa 4 (bandera `NEXT_PUBLIC_MK_ACCOUNT=1`):
 // `CheckoutSheet` (cantidad → pago → confirmación), cuenta dentro del flujo, pasarela de prueba,
@@ -11,16 +11,16 @@ const sheet = (page: Page) => page.getByRole("dialog", { name: `Comprar · ${CAS
 const quantity = (page: Page) => sheet(page).getByRole("textbox", { name: /Cantidad de botellas/ });
 
 async function openCheckout(page: Page) {
-  await page.goto(`/colecciones/${CASE.collectionSlug}`);
+  await page.goto(CASE.collectionPath);
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   await expect(sheet(page)).toBeVisible();
 }
 
 /** Entra con la consumidora de demostración y vuelve a la ficha sin recargar. */
 async function loggedInAtCollection(page: Page) {
-  await page.goto(`/entrar?volver=${encodeURIComponent(`/colecciones/${CASE.collectionSlug}`)}`);
+  await page.goto(`/entrar?volver=${encodeURIComponent(CASE.collectionPath)}`);
   await login(page);
-  await expect(page).toHaveURL(new RegExp(`/colecciones/${CASE.collectionSlug}$`));
+  await expect(page).toHaveURL(new RegExp(`${CASE.collectionPath}$`));
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   await expect(sheet(page)).toBeVisible();
 }
@@ -36,7 +36,9 @@ test("comprar sin sesión: la cuenta se abre dentro del flujo y el pago recibido
 
   // Paso 1 · cantidad, con el total en bolivianos.
   await expect(dialog.getByRole("heading", { name: "¿Cuántas botellas?" })).toBeVisible();
-  await expect(dialog.getByText("Hay 60 disponibles.")).toBeVisible();
+  // El máximo por compra y los minutos de reserva llegan de la configuración pública.
+  await expect(dialog.getByText("Hay 60 disponibles. Hasta 10 botellas por pedido.")).toBeVisible();
+  await expect(dialog.getByText("Al continuar apartamos tus botellas 30 minutos, mientras pagas.")).toBeVisible();
   await dialog.getByRole("button", { name: "Añadir una botella" }).click();
   await expect(quantity(page)).toHaveValue("2");
   await expect(dialog.getByText(/^Bs\s560$/)).toBeVisible();
@@ -106,9 +108,7 @@ test("comprar sin sesión: la cuenta se abre dentro del flujo y el pago recibido
   expect(errors).toEqual([]);
 });
 
-test("máximo por compra: el servidor lo dice y el campo lo recuerda; pago rechazado y nuevo intento", async ({
-  page,
-}) => {
+test("máximo por compra conocido de antemano; pago rechazado y nuevo intento", async ({ page }) => {
   // Recorrido largo, con varias auditorías axe: tres veces el tiempo por prueba.
   test.slow();
   const errors = trackErrors(page);
@@ -118,13 +118,13 @@ test("máximo por compra: el servidor lo dice y el campo lo recuerda; pago recha
   // Una cantidad que no es un número entero válido.
   await quantity(page).fill("0");
   await dialog.getByRole("button", { name: "Continuar al pago" }).click();
-  await expect(dialog.getByText("Escribe un número entre 1 y 60.")).toBeVisible();
+  await expect(dialog.getByText("Escribe un número entre 1 y 10.")).toBeVisible();
 
-  // Más del máximo por compra (configuración del backend): 422 con el máximo.
+  // Más del máximo por compra: el formulario ya lo sabe (`purchase-settings`) y no llega a pedirlo.
+  await expect(dialog.getByText("Hay 60 disponibles. Hasta 10 botellas por pedido.")).toBeVisible();
   await quantity(page).fill("11");
   await dialog.getByRole("button", { name: "Continuar al pago" }).click();
-  await expect(dialog.getByText("Puedes comprar hasta 10 botellas por pedido.")).toBeVisible();
-  await expect(dialog.getByText(/Hasta 10 botellas por pedido./)).toBeVisible();
+  await expect(dialog.getByText("Escribe un número entre 1 y 10.")).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Añadir una botella" })).toBeDisabled();
   expect(await axe(page)).toEqual([]);
 
@@ -203,30 +203,31 @@ test("un pedido que espera el pago se puede pagar después, desde «Mis pedidos�
   await expect(page.getByRole("list", { name: "Tus botellas" }).getByRole("listitem")).toHaveCount(1);
 });
 
-test("cuenta nueva creada dentro de la compra, y sigue hasta el pago", async ({ page }) => {
+test("cuenta nueva creada dentro de la compra: entra en la hoja y sigue hasta el pago", async ({ page }) => {
+  test.slow();
+  const email = `compra.${test.info().project.name}@ejemplo.test`;
   await openCheckout(page);
   const dialog = sheet(page);
   await dialog.getByRole("button", { name: "Continuar al pago" }).click();
   await dialog.getByRole("button", { name: "Crear una cuenta" }).click();
-  await dialog.getByRole("textbox", { name: /Nombre completo/ }).fill("Lucía Vargas");
-  await dialog
-    .getByRole("textbox", { name: /Correo electrónico/ })
-    .fill(`compra.${test.info().project.name}@ejemplo.test`);
-  await dialog.getByLabel(/^Contraseña/).fill("una-clave-larga-2026");
-  await dialog.getByRole("checkbox", { name: /Acepto el aviso legal/ }).check();
-  await dialog.getByRole("checkbox", { name: /mayor de 18 años/ }).check();
+  await expect(dialog.getByRole("checkbox", { name: /mayor de 18 años/ })).toBeVisible();
   expect(await axe(page)).toEqual([]);
-  await dialog.getByRole("button", { name: "Crear cuenta" }).click();
+  // El alta pide confirmar el correo; la hoja lo dice y deja entrar sin perder el pedido.
+  await fillSignup(page, email);
+  await expect(dialog.getByText(`Te enviamos un enlace a ${email}`, { exact: false })).toBeVisible();
+  expect(await axe(page)).toEqual([]);
+  await dialog.getByRole("button", { name: "Entrar con mi cuenta" }).click();
+  await login(page, { email, password: NEW_PASSWORD });
   await expect(dialog.getByRole("region", { name: "Pasarela de prueba" })).toBeVisible();
 });
 
 test("sin precio o agotada no se puede comprar: «Precio por anunciar» y «Avísame»", async ({ page }) => {
-  await page.goto(`/colecciones/${NO_PRICE_COLLECTION.slug}`);
+  await page.goto(NO_PRICE_COLLECTION.path);
   await expect(page.getByText("Precio por anunciar")).toBeVisible();
   await expect(page.getByRole("button", { name: "Comprar", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Avísame" })).toBeVisible();
 
-  await page.goto("/colecciones/vino-las-carreras-2025");
+  await page.goto("/colecciones/destileria-cinti-viejo/vino-las-carreras-2025");
   await expect(page.getByText("Sin botellas disponibles")).toBeVisible();
   await expect(page.getByRole("button", { name: "Comprar", exact: true })).toHaveCount(0);
 });

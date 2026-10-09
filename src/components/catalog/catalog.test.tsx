@@ -16,8 +16,9 @@ vi.mock("@/lib/links", async (original) => {
   return { ...actual, links: actual.buildLinks({ landing: "https://landing.ejemplo.bo", bodegas: "", app: "" }) };
 });
 
-const collection = (slug: string): Collection =>
-  structuredClone(publicFixtures.collections.find((c) => c.slug === slug)!);
+// El `slug` solo es único dentro de una bodega: por defecto, las de Destilería Cinti Viejo.
+const collection = (slug: string, winery = "destileria-cinti-viejo"): Collection =>
+  structuredClone(publicFixtures.collections.find((c) => c.slug === slug && c.winery.slug === winery)!);
 /** Los espacios duros de `Intl` (U+00A0, U+202F) como espacios normales. */
 const nbsp = (text: string) => text.replace(/[\u00a0\u202f]/g, " ");
 
@@ -50,7 +51,7 @@ describe("BottleCard", () => {
     const card = screen.getByRole("article");
     expect(within(card).getByRole("link", { name: "Singani Gran Reserva 2026" })).toHaveAttribute(
       "href",
-      "/colecciones/singani-gran-reserva-2026",
+      "/colecciones/destileria-cinti-viejo/singani-gran-reserva-2026",
     );
     expect(card).toHaveTextContent("Singani · 2026");
     expect(card).toHaveTextContent("Destilería Cinti Viejo");

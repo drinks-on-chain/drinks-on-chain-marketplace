@@ -5,6 +5,7 @@ import { mockMailbox, resetErpDb, resetSessions, setupMockServer } from "@drinks
 import { isValidStrKey } from "@drinks-on-chain/mocks";
 import { HttpResponse, http } from "msw";
 import { getSessionStatus, resetSessionForTests } from "@/lib/api/session";
+import { fetchOrders } from "@/lib/orders/api";
 import {
   NotConsumerError,
   fetchConsumerProfile,
@@ -89,13 +90,40 @@ describe("entrar", () => {
 });
 
 describe("crear cuenta", () => {
-  it("con el OpenAPI vigente el alta responde con la sesión abierta", async () => {
-    await expect(signup(newcomer())).resolves.toEqual({ kind: "signed-in" });
-    expect(getSessionStatus()).toBe("authenticated");
-    await expect(fetchConsumerProfile()).resolves.toMatchObject({ email: "lucia.vargas@ejemplo.test" });
+  it("[BORRADOR §13.1] el alta responde 202 sin sesión; se confirma el correo con el enlace y después se entra", async () => {
+    const input = newcomer();
+    await expect(signup(input)).resolves.toEqual({ kind: "verification-sent" });
+    expect(getSessionStatus()).not.toBe("authenticated");
+    const mail = mockMailbox.latest({ to: input.email, template: "EMAIL_VERIFY" });
+    expect(mail?.link).toContain("/verificar-correo?token=");
+
+    // Sin confirmar se puede entrar, y el perfil lo dice.
+    await login({ email: input.email, password: input.password });
+    await expect(fetchConsumerProfile()).resolves.toMatchObject({ email: input.email, emailVerified: false });
+
+    await expect(verifyEmail(mail!.token!)).resolves.toEqual({ signedIn: false });
+    await expect(fetchConsumerProfile()).resolves.toMatchObject({ emailVerified: true });
+    // Una cuenta nueva no tiene pedidos.
+    await expect(fetchOrders()).resolves.toMatchObject({ total: 0 });
   });
 
-  it("[BORRADOR §13.1] con el 202 `VERIFICATION_SENT` no hay sesión hasta confirmar el correo", async () => {
+  it("captcha rechazado: 422; campo trampa relleno o correo ya registrado: 202 sin crear ni enviar nada", async () => {
+    await expect(signup(newcomer({ captchaToken: "fail" }))).rejects.toMatchObject({
+      status: 422,
+      code: "CAPTCHA_INVALID",
+    });
+    await expect(signup(newcomer({ website: "http://spam.test" }))).resolves.toEqual({ kind: "verification-sent" });
+    expect(mockMailbox.latest({ to: newcomer().email })).toBeNull();
+    // No se revela si el correo ya tiene cuenta.
+    await expect(signup(newcomer({ email: consumer.email }))).resolves.toEqual({ kind: "verification-sent" });
+    expect(mockMailbox.latest({ to: consumer.email, template: "EMAIL_VERIFY" })).toBeNull();
+  });
+
+  it("la contraseña sigue la política del backend", async () => {
+    await expect(signup(newcomer({ password: "corta" }))).rejects.toMatchObject({ status: 422 });
+  });
+
+  it("un 202 sin sesión nunca abre la cuenta, venga con el cuerpo que venga", async () => {
     server.use(
       http.post(`${ORIGIN}/api/v1/auth/signup`, () =>
         HttpResponse.json({ success: true, statusCode: 202, data: { status: "VERIFICATION_SENT" } }, { status: 202 }),
@@ -103,10 +131,6 @@ describe("crear cuenta", () => {
     );
     await expect(signup(newcomer())).resolves.toEqual({ kind: "verification-sent" });
     expect(getSessionStatus()).not.toBe("authenticated");
-  });
-
-  it("un correo que ya tiene cuenta es un 409", async () => {
-    await expect(signup(newcomer({ email: consumer.email }))).rejects.toMatchObject({ status: 409 });
   });
 });
 

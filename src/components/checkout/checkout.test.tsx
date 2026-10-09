@@ -98,7 +98,7 @@ describe("página de un pedido", () => {
     expect(received.compareDocumentPosition(bottles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("link", { name: "Ver la colección" })).toHaveAttribute(
       "href",
-      "/colecciones/singani-gran-reserva-2026",
+      "/colecciones/destileria-cinti-viejo/singani-gran-reserva-2026",
     );
   });
 

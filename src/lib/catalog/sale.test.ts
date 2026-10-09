@@ -5,7 +5,9 @@ import { availableOf, editionSizeOf, isPurchasable, isSoldOut, saleStateOf } fro
 // [BORRADOR §13.1] `saleState` y `counts.available` mandan; `status` y `availability.available`
 // son los nombres del borrador de la Ola 2, que los mocks aún envían.
 
-const collection = (slug: string) => structuredClone(publicFixtures.collections.find((c) => c.slug === slug)!);
+// El `slug` solo es único dentro de una bodega: por defecto, las de Destilería Cinti Viejo.
+const collection = (slug: string, winery = "destileria-cinti-viejo") =>
+  structuredClone(publicFixtures.collections.find((c) => c.slug === slug && c.winery.slug === winery)!);
 
 describe("estado de venta de una colección", () => {
   it("lee `saleState` y `counts.available` cuando llegan", () => {

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/errors";
-import { fetchCollection, fetchCollections, type CollectionFilters } from "./api";
+import { fetchCollection, fetchCollections, findCollectionsBySlug, type CollectionFilters } from "./api";
 import { CATALOG_PAGE_SIZE } from "./filters";
 
 // [BORRADOR §17.1] Hooks del catálogo: ver el aviso de `api.ts`.
@@ -24,11 +24,21 @@ export function useCollections(filters: CollectionFilters = {}, { limit = CATALO
 }
 
 /** Ficha de una colección. */
-export function useCollection(slug: string, { enabled = true }: { enabled?: boolean } = {}) {
+export function useCollection(winerySlug: string, slug: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: ["public", "collections", "detail", slug] as const,
-    queryFn: ({ signal }) => fetchCollection(slug, signal),
+    queryKey: ["public", "collections", "detail", winerySlug, slug] as const,
+    queryFn: ({ signal }) => fetchCollection(winerySlug, slug, signal),
     enabled,
+    staleTime: 60_000,
+    retry,
+  });
+}
+
+/** Colecciones con ese `slug` en cualquier bodega (dirección antigua de la ficha). */
+export function useCollectionsBySlug(slug: string) {
+  return useQuery({
+    queryKey: ["public", "collections", "by-slug", slug] as const,
+    queryFn: ({ signal }) => findCollectionsBySlug(slug, signal),
     staleTime: 60_000,
     retry,
   });

@@ -6,7 +6,8 @@ import { login } from "@/lib/account/api";
 import { resetSessionForTests } from "@/lib/api/session";
 import { fetchCollection } from "@/lib/catalog/api";
 import { availableOf } from "@/lib/catalog/sale";
-import { createOrder, fetchOrder, fetchOrders, simulatePayment } from "./api";
+import { HttpResponse, http } from "msw";
+import { createOrder, fetchOrder, fetchOrders, fetchPurchaseSettings, simulatePayment } from "./api";
 import { orderFailure, orderPhase, visibleTokens } from "./status";
 
 // [BORRADOR §13.1] La compra (2C) contra los handlers reales de `@drinks-on-chain/mocks`: pedido,
@@ -15,6 +16,7 @@ import { orderFailure, orderPhase, visibleTokens } from "./status";
 const ORIGIN = "http://localhost:3005";
 const server = setupMockServer();
 const consumer = demoUsers.find((u) => u.audience === "CONSUMER")!;
+const WINERY = "destileria-cinti-viejo";
 const ON_SALE = "singani-gran-reserva-2026";
 // La clave de idempotencia es un UUID (como la genera la hoja de compra).
 const nextKey = () => crypto.randomUUID();
@@ -40,7 +42,7 @@ afterAll(() => {
 
 describe("pedido y pasarela de prueba", () => {
   it("aparta las botellas, espera el pago y, al aprobarlo, entrega un NFT por botella", async () => {
-    const collection = await fetchCollection(ON_SALE);
+    const collection = await fetchCollection(WINERY, ON_SALE);
     const before = availableOf(collection);
     const order = await createOrder({ collectionId: collection.id, quantity: 2 }, nextKey());
     expect(order).toMatchObject({
@@ -53,7 +55,7 @@ describe("pedido y pasarela de prueba", () => {
     });
     expect(order.reservedUntil).not.toBeNull();
     // Las botellas apartadas dejan de estar disponibles.
-    expect(availableOf(await fetchCollection(ON_SALE))).toBe(before - 2);
+    expect(availableOf(await fetchCollection(WINERY, ON_SALE))).toBe(before - 2);
 
     // Demorar: la pasarela aún no responde y el pedido sigue esperando.
     const delayed = await simulatePayment(order.payment.id, "DELAY");
@@ -77,47 +79,67 @@ describe("pedido y pasarela de prueba", () => {
   });
 
   it("pago rechazado: sin NFT y las botellas vuelven a estar disponibles", async () => {
-    const collection = await fetchCollection(ON_SALE);
+    const collection = await fetchCollection(WINERY, ON_SALE);
     const order = await createOrder({ collectionId: collection.id, quantity: 3 }, nextKey());
     const failed = await simulatePayment(order.payment.id, "REJECT");
     expect(failed).toMatchObject({ status: "PAYMENT_FAILED", payment: { status: "REJECTED" }, tokens: [] });
     expect(orderPhase(failed)).toBe("failed");
-    expect(availableOf(await fetchCollection(ON_SALE))).toBe(availableOf(collection));
+    expect(availableOf(await fetchCollection(WINERY, ON_SALE))).toBe(availableOf(collection));
   });
 
   it("la reserva caduca sin pago y libera las botellas", async () => {
-    const collection = await fetchCollection(ON_SALE);
+    const collection = await fetchCollection(WINERY, ON_SALE);
     const order = await createOrder({ collectionId: collection.id, quantity: 1 }, nextKey());
     advanceMockClock(31 * 60_000);
     const expired = await fetchOrder(order.id);
     expect(expired).toMatchObject({ status: "EXPIRED", tokens: [], reservedUntil: null });
     expect(orderPhase(expired)).toBe("expired");
-    expect(availableOf(await fetchCollection(ON_SALE))).toBe(availableOf(collection));
+    expect(availableOf(await fetchCollection(WINERY, ON_SALE))).toBe(availableOf(collection));
   });
 
   it("el historial trae los pedidos de quien tiene la sesión, del más reciente al más antiguo", async () => {
-    const collection = await fetchCollection(ON_SALE);
-    await expect(fetchOrders()).resolves.toMatchObject({ total: 0, items: [] });
+    const collection = await fetchCollection(WINERY, ON_SALE);
+    // La consumidora de demostración ya trae pedidos sembrados (`MARKETPLACE_DEMO_ACCOUNT`).
+    const seeded = await fetchOrders();
+    expect(seeded.items.map((o) => orderPhase(o)).sort()).toEqual(["expired", "failed", "paid", "paid"]);
     const first = await createOrder({ collectionId: collection.id, quantity: 1 }, nextKey());
     const second = await createOrder({ collectionId: collection.id, quantity: 2 }, nextKey());
     const page = await fetchOrders({ limit: 20, offset: 0 });
-    expect(page.total).toBe(2);
-    expect(page.items.map((o) => o.id)).toEqual([second.id, first.id]);
+    expect(page.total).toBe(seeded.total + 2);
+    expect(page.items.slice(0, 2).map((o) => o.id)).toEqual([second.id, first.id]);
   });
 
   it("la misma `Idempotency-Key` no crea dos pedidos", async () => {
-    const collection = await fetchCollection(ON_SALE);
+    const collection = await fetchCollection(WINERY, ON_SALE);
+    const before = (await fetchOrders()).total;
     const sameKey = nextKey();
     const first = await createOrder({ collectionId: collection.id, quantity: 1 }, sameKey);
     const again = await createOrder({ collectionId: collection.id, quantity: 1 }, sameKey);
     expect(again.id).toBe(first.id);
-    await expect(fetchOrders()).resolves.toMatchObject({ total: 1 });
+    await expect(fetchOrders()).resolves.toMatchObject({ total: before + 1 });
   });
 });
 
 describe("reglas del pedido", () => {
+  it("`purchase-settings` publica el máximo por compra y la reserva, sin sesión; 404 o 501 = aún no existe", async () => {
+    await expect(fetchPurchaseSettings()).resolves.toEqual({
+      maxBottlesPerOrder: 10,
+      reservationMinutes: 30,
+      currency: "BOB",
+    });
+    for (const status of [404, 501]) {
+      server.use(
+        http.get(`${ORIGIN}/api/v1/public/purchase-settings`, () =>
+          HttpResponse.json({ success: false, statusCode: status, error: { code: "X", message: "" } }, { status }),
+        ),
+      );
+      await expect(fetchPurchaseSettings()).resolves.toBeNull();
+      server.resetHandlers();
+    }
+  });
+
   it("máximo por compra: el servidor dice cuál es (`expected`) y el formulario lo aprende", async () => {
-    const collection = await fetchCollection(ON_SALE);
+    const collection = await fetchCollection(WINERY, ON_SALE);
     const error = await createOrder({ collectionId: collection.id, quantity: 11 }, nextKey()).catch((e) => e);
     expect(error).toMatchObject({ status: 422, code: "MKT_MAX_PER_ORDER" });
     expect(orderFailure(error)).toEqual({
@@ -128,14 +150,14 @@ describe("reglas del pedido", () => {
   });
 
   it("una colección sin precio no se puede pedir («Precio por anunciar»)", async () => {
-    const collection = await fetchCollection("singani-preventa-2026");
+    const collection = await fetchCollection(WINERY, "singani-preventa-2026");
     const error = await createOrder({ collectionId: collection.id, quantity: 1 }, nextKey()).catch((e) => e);
     expect(error).toMatchObject({ status: 422, code: "MKT_PRICE_UNDEFINED" });
     expect(orderFailure(error).field).toBe(false);
   });
 
   it("una colección agotada o inexistente", async () => {
-    const soldOut = await fetchCollection("vino-las-carreras-2025");
+    const soldOut = await fetchCollection(WINERY, "vino-las-carreras-2025");
     await expect(createOrder({ collectionId: soldOut.id, quantity: 1 }, nextKey())).rejects.toMatchObject({
       status: 409,
       code: "MKT_NOT_ENOUGH_STOCK",

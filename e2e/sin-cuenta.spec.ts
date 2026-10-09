@@ -43,8 +43,8 @@ test("ninguna pantalla pública enseña la cuenta ni la compra, ni llama a sus r
   const pages: { path: string; ready: string }[] = [
     { path: "/", ready: "Destacados" },
     { path: "/catalogo", ready: CASE.name },
-    { path: `/colecciones/${CASE.collectionSlug}`, ready: "El lote, paso a paso" },
-    { path: `/colecciones/${NO_PRICE_COLLECTION.slug}`, ready: "El lote, paso a paso" },
+    { path: CASE.collectionPath, ready: "El lote, paso a paso" },
+    { path: NO_PRICE_COLLECTION.path, ready: "El lote, paso a paso" },
     { path: "/bodegas", ready: CASE.winery },
     { path: `/b/${CASE.lotCode}`, ready: "Reglas con las que se hizo el lote" },
     { path: "/b", ready: "Verifica una botella" },
@@ -67,7 +67,7 @@ test("ninguna pantalla pública enseña la cuenta ni la compra, ni llama a sus r
 
 test("la ficha de una colección a la venta sigue con «Avísame», sin compra", async ({ page }) => {
   const calls = trackPrivateCalls(page);
-  await page.goto(`/colecciones/${CASE.collectionSlug}`);
+  await page.goto(CASE.collectionPath);
   await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
   await expect(page.getByText("A la venta", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Avísame" })).toHaveAttribute(

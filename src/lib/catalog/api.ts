@@ -56,13 +56,37 @@ export async function fetchCollections(
   return toPage(data, PublicCollectionSummarySchema, page);
 }
 
-/** [BORRADOR §17.1] `GET /v1/public/collections/{slug}`. */
-export function fetchCollection(slug: string, signal?: AbortSignal): Promise<Collection> {
-  return api(`/v1/public/collections/${encodeURIComponent(slug)}`, {
+/**
+ * [BORRADOR §13.1] `GET /v1/public/collections/{winerySlug}/{slug}`: la ficha se resuelve por
+ * bodega, porque el `slug` de una colección solo es único dentro de su bodega (mocks 0.6.0-rc.2).
+ * La ruta de un solo segmento (`/{slug}`) está obsoleta y no se usa.
+ */
+export function fetchCollection(winerySlug: string, slug: string, signal?: AbortSignal): Promise<Collection> {
+  return api(`/v1/public/collections/${encodeURIComponent(winerySlug)}/${encodeURIComponent(slug)}`, {
     auth: false,
     signal,
     schema: PublicCollectionSchema,
   });
+}
+
+/**
+ * Colecciones del catálogo con ese `slug`, de cualquier bodega (para redirigir las direcciones
+ * antiguas `/colecciones/{slug}`). Varias = ambiguo; ninguna, o un catálogo que aún no existe = 0.
+ */
+export async function findCollectionsBySlug(slug: string, signal?: AbortSignal): Promise<CollectionSummary[]> {
+  const found: CollectionSummary[] = [];
+  const limit = 100;
+  for (let offset = 0; ; offset += limit) {
+    let page: Page<CollectionSummary>;
+    try {
+      page = await fetchCollections({}, { limit, offset }, signal);
+    } catch (error) {
+      if (isCatalogUnavailable(error)) return [];
+      throw error;
+    }
+    found.push(...page.items.filter((collection) => collection.slug === slug));
+    if (offset + page.items.length >= page.total || page.items.length === 0) return found;
+  }
 }
 
 /**

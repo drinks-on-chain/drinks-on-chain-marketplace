@@ -1,4 +1,10 @@
-import { OrderSchema, type Order, type OrderStatus } from "@drinks-on-chain/mocks";
+import {
+  OrderSchema,
+  PurchaseSettingsSchema,
+  type Order,
+  type OrderStatus,
+  type PurchaseSettings,
+} from "@drinks-on-chain/mocks";
 import { api } from "@/lib/api/client";
 import { toPage, type Page, type PageParams } from "@/lib/api/envelope";
 import { ApiError } from "@/lib/api/errors";
@@ -48,6 +54,22 @@ export function simulatePayment(paymentId: string, outcome: PaymentOutcome): Pro
     body: { outcome },
     schema: OrderSchema,
   });
+}
+
+export type { PurchaseSettings };
+
+/**
+ * [BORRADOR §13.1, mocks 0.6.0-rc.2] `GET /v1/public/purchase-settings`: máximo de botellas por
+ * pedido y minutos de reserva, sin sesión. `null` si el backend aún no la publica (404 o 501):
+ * entonces el máximo se sigue aprendiendo del rechazo del pedido (`MKT_MAX_PER_ORDER`).
+ */
+export async function fetchPurchaseSettings(signal?: AbortSignal): Promise<PurchaseSettings | null> {
+  try {
+    return await api("/v1/public/purchase-settings", { auth: false, signal, schema: PurchaseSettingsSchema });
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 501)) return null;
+    throw error;
+  }
 }
 
 /** Códigos del borrador (los definitivos serán los `MKT_…` del contrato de la Ola 4). */
