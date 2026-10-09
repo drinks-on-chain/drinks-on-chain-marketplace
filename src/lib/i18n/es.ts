@@ -583,6 +583,8 @@ export const es = {
       total: "Total",
       continue: "Continuar al pago",
       reserveNote: "Al continuar apartamos tus botellas unos minutos, mientras pagas.",
+      reserveNoteMinutes: (minutes: number) =>
+        `Al continuar apartamos tus botellas ${minutes} ${plural(minutes, "minuto", "minutos")}, mientras pagas.`,
     },
     account: {
       title: "Entra para continuar",

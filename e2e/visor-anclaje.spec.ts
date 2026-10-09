@@ -105,3 +105,71 @@ test("expediente abierto: sin anclaje, y no se consulta la verificación", async
   expect(calls).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("la huella no coincide (expediente alterado): se dice con claridad, con las huellas a la vista y reintento", async ({
+  page,
+}) => {
+  const errors = trackErrors(page);
+  const lot = publicFixtures.passports[CASE.lotCode]!;
+  // El escenario sirve un expediente con un dato cambiado: su SHA-256 ya no es la huella anclada.
+  await page.goto(`/b/${CASE.lotCode}?mock=huella-alterada`);
+  const region = section(page);
+  const alert = region.getByRole("alert");
+  await expect(alert).toContainText("La huella recalculada no coincide");
+  await expect(alert).toContainText("no es la que publica el pasaporte ni la registrada en la red");
+  // Las tres huellas, enteras, para compararlas.
+  await expect(alert).toContainText("Huella calculada en tu dispositivo");
+  await expect(alert).toContainText(lot.dossier.hash!);
+  await expect(alert.locator("code")).toHaveCount(3);
+  const computed = await alert.locator("code").first().textContent();
+  expect(computed).toMatch(/^[0-9a-f]{64}$/);
+  expect(computed).not.toBe(lot.dossier.hash);
+  // Sin dramatizar: qué puede ser y qué hacer.
+  await expect(alert).toContainText("Puede ser una descarga incompleta");
+  await expect(alert.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect(region.getByText("La huella recalculada coincide")).toHaveCount(0);
+  // Lo que comprobó el servidor al confirmar el anclaje sigue a la vista, aparte.
+  await expect(region.getByRole("list", { name: "Comprobaciones" }).getByRole("listitem")).toHaveCount(4);
+
+  await expectNoHorizontalScroll(page);
+  expect(await axe(page)).toEqual([]);
+  expect(errors).toEqual([]);
+
+  // Con el expediente intacto, «Reintentar» vuelve a descargar y ya coincide.
+  await page.evaluate(() =>
+    (window as unknown as { __docMocks: { setScenario(name: string): void } }).__docMocks.setScenario("normal"),
+  );
+  await alert.getByRole("button", { name: "Reintentar" }).click();
+  await expect(region.getByText("La huella recalculada coincide")).toBeVisible();
+});
+
+test("botella con el expediente alterado: tampoco se da el código por comprobado", async ({ page }) => {
+  await page.goto(`/b/${CASE.bottle.code}?mock=huella-alterada`);
+  await expect(page.getByText("El expediente no coincide con su huella")).toBeVisible();
+  await expect(page.getByText("Este código pertenece al expediente cerrado")).toHaveCount(0);
+  await expect(section(page).getByRole("alert")).toContainText("La huella recalculada no coincide");
+  await page.goto("/?mock=normal");
+});
+
+test("verificación que aún no existe (404): el visor muestra lo que deduce del pasaporte", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(`/b/${CASE.lotCode}?mock=verificacion-no-encontrada`);
+  const region = section(page);
+  // El recálculo en el navegador no depende de esa ruta.
+  await expect(region.getByText("La huella recalculada coincide")).toBeVisible();
+  const checks = region.getByRole("list", { name: "Comprobaciones" }).getByRole("listitem");
+  await expect(checks).toHaveCount(4);
+  await expect(checks.nth(0)).toContainText("Cumple");
+  await expect(checks.nth(1)).toContainText("Cumple");
+  await expect(checks.nth(2)).toContainText("Cumple");
+  // La cuenta oficial solo la puede confirmar el servidor.
+  await expect(checks.nth(3)).toContainText("No se puede comprobar aquí");
+  await expect(region).toContainText("El servicio de verificación aún no está disponible");
+  await expect(region.getByText(/Comprobaciones hechas por el servidor/)).toHaveCount(0);
+  // El enlace del backend sigue ahí; no hay ningún mensaje de error.
+  await expect(region.getByRole("link", { name: /Ver la transacción en el explorador/ })).toBeVisible();
+  await expect(region.getByRole("alert")).toHaveCount(0);
+  expect(await axe(page)).toEqual([]);
+  expect(errors).toEqual([]);
+  await page.goto("/?mock=normal");
+});

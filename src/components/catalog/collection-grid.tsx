@@ -19,7 +19,7 @@ export function CollectionGrid({
   return (
     <ul className={cn(GRID, className)}>
       {collections.map((collection) => (
-        <li key={collection.slug}>
+        <li key={collection.id}>
           <BottleCard collection={collection} headingLevel={headingLevel} />
         </li>
       ))}

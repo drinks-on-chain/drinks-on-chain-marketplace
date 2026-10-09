@@ -1,12 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SearchX } from "lucide-react";
 import { Badge, Button, EmptyState, ErrorState, Skeleton, TextLink } from "@drinks-on-chain/ui";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import type { Collection } from "@/lib/catalog/api";
-import { useCollection } from "@/lib/catalog/hooks";
+import { useCollection, useCollectionsBySlug } from "@/lib/catalog/hooks";
 import { availableOf, editionSizeOf, isPurchasable, isSoldOut, saleStateOf } from "@/lib/catalog/sale";
 import { env } from "@/lib/env";
 import { fmtDate, fmtNumber } from "@/lib/format";
@@ -139,8 +140,62 @@ function BackToCatalog() {
   );
 }
 
-export function CollectionScreen({ slug }: { slug: string }) {
-  const collection = useCollection(slug);
+function NotFound() {
+  return (
+    <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
+      {/* Lo que no se encontró no se indexa (con mocks ya lo dice el layout: una sola etiqueta). */}
+      {env.mocks ? null : <meta name="robots" content="noindex" />}
+      <h1 className="sr-only">{t.title}</h1>
+      <EmptyState
+        icon={<SearchX aria-hidden />}
+        title={t.notFoundTitle}
+        description={t.notFoundBody}
+        action={<BackToCatalog />}
+      />
+    </div>
+  );
+}
+
+/**
+ * Dirección antigua de la ficha, solo con el `slug` (`/colecciones/{slug}`, y `/catalogo/{slug}`
+ * de la Ola 2). El `slug` ya solo es único dentro de una bodega: si una sola lo tiene, se lleva a
+ * su ficha; si lo tienen varias o ninguna, no se adivina: "No encontramos esta colección".
+ */
+export function CollectionBySlugScreen({ slug }: { slug: string }) {
+  const router = useRouter();
+  const matches = useCollectionsBySlug(slug);
+  const only = matches.data?.length === 1 ? matches.data[0] : undefined;
+  useEffect(() => {
+    if (only) router.replace(routes.collection(only.winery.slug, only.slug));
+  }, [only, router]);
+
+  if (matches.isError) {
+    return (
+      <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
+        <h1 className="sr-only">{t.title}</h1>
+        <ErrorState
+          title={t.errorTitle}
+          description={errorMessage(matches.error)}
+          onRetry={() => void matches.refetch()}
+          retrying={matches.isRefetching}
+          retryLabel={es.common.retry}
+        />
+      </div>
+    );
+  }
+  if (matches.isPending || only) {
+    return (
+      <div role="status" aria-busy="true" className="px-5 py-8 md:px-8 md:py-14">
+        <span className="sr-only">{es.common.loading}</span>
+        <Skeleton shape="block" className="h-40" />
+      </div>
+    );
+  }
+  return <NotFound />;
+}
+
+export function CollectionScreen({ winerySlug, slug }: { winerySlug: string; slug: string }) {
+  const collection = useCollection(winerySlug, slug);
 
   if (collection.isPending) {
     return (

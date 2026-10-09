@@ -167,9 +167,19 @@ Contra el borrador §13.1 (`/v1/orders`, `/v1/payments/test/{id}/simulate`).
 - [x] Visor comprobado contra el backend actual (`v0.2.0`) con `E2E_REAL_API=1` y el lote `CVJ-2026-SINGANI-004`: 6 pruebas en verde, sin peticiones nuevas y sin rastro de cuenta · 2026-10-09
 - [ ] No encender `NEXT_PUBLIC_MK_ACCOUNT` en Vercel (producción ni previews) hasta que el backend tenga las rutas de la Etapa 4
 
+### Fase 6 · Mocks 0.6.0-rc.2
+
+- [x] `@drinks-on-chain/mocks` 0.6.0-rc.2 · 2026-10-09
+- [x] El `slug` de una colección es único **por bodega**: la ficha vive en `/colecciones/{slugBodega}/{slug}` (la ruta que el backend escribe en `external_url` del NFT) y se pide a `GET /v1/public/collections/{winerySlug}/{slug}`; las listas usan el `id` como clave · 2026-10-09
+- [x] Direcciones antiguas: `/catalogo/{slug}` → `/colecciones/{slug}`, que busca el `slug` en el catálogo y redirige si una sola bodega lo tiene; con dos («Singani Preventa 2026») o ninguna, «No encontramos esta colección» · 2026-10-09
+- [x] Alta con captcha y campo trampa → 202 sin sesión («Revisa tu correo»), verificación con el buzón simulado y `emailVerified` variable en el perfil · 2026-10-09
+- [x] `GET /v1/public/purchase-settings`: el máximo por compra y los minutos de reserva se conocen al abrir la hoja (el 422 `MKT_MAX_PER_ORDER` queda como respaldo) · 2026-10-09
+- [x] E2E del visor con los escenarios `huella-alterada` («La huella recalculada no coincide», con las tres huellas y reintento) y `verificacion-no-encontrada` (comprobaciones deducidas del pasaporte) · 2026-10-09
+- [ ] La redirección de la dirección antigua se resuelve en el navegador (el catálogo es un borrador que solo existe en los mocks): responde 200 y, si no se encuentra, pinta el aviso sin estado 404. Con el catálogo real (Ola 4), resolverla en el servidor
+
 ### Lo que el contrato de la Ola 4 debería fijar (visto al construir 2B y 2C)
 
-- **Máximo por compra**: hoy el Marketplace solo lo conoce cuando el servidor rechaza el pedido (`details[0].expected`). Debería llegar en la colección pública (`maxPerOrder`, `null` = sin límite) o en una ruta de configuración pública.
+- **Máximo por compra**: resuelto en el borrador con `GET /v1/public/purchase-settings` (mocks rc.2); falta fijar si puede variar por bodega (`compra.maxBotellasPorCompra` admite ajuste por bodega) y cómo se expresa «sin límite».
 - **Tamaño de la colección en el pedido**: `Order.tokens[]` trae `bottleNumber` pero no el total; «Botella N de M» obliga a pedir además la colección. Añadir `collection.quota` (o `collectionSize` en cada NFT).
 - **Alta**: confirmar el `202 VERIFICATION_SENT`, los nombres `acceptTerms`, `ageDeclaration`, `captchaToken`, `website`, y si `verify-email` devuelve la sesión. El alta del OpenAPI vigente rechazaría esos campos (`forbidNonWhitelisted`).
 - **Códigos de error**: los definitivos de `POST /v1/orders` y de la pasarela (`MKT_…`), el del correo repetido en el alta (hoy `CONFLICT` genérico) y qué responde un pago ya resuelto.
@@ -216,7 +226,7 @@ Por hacer en sus olas:
 
 ## Huecos vistos en `@drinks-on-chain/mocks` 0.6.0-rc.1 y `@drinks-on-chain/ui` 0.4.0-rc.1 (Ola 3)
 
-Sin ajustes locales en ninguno de los dos: lo que falta está anotado para sus pistas.
+Sin ajustes locales en ninguno de los dos: lo que falta está anotado para sus pistas. **La rc.2 de los mocks resolvió** el alta del borrador (202, captcha, trampa), `emailVerified` variable, los pedidos sembrados, el máximo por compra y los escenarios del anclaje (`huella-alterada`, `verificacion-no-encontrada`). Siguen pendientes: pedidos solo en memoria, un consumidor sin dirección (`address: null`), una comprobación del anclaje en `false` y lo de `ui`.
 
 - **Mocks · alta del borrador**: `POST /v1/auth/signup` es el del OpenAPI vigente (201 con sesión; ignora `acceptTerms`, `ageDeclaration`, `captchaToken` y `website`). El `202 VERIFICATION_SENT`, el captcha rechazado y el campo trampa del alta solo se prueban aquí con respuestas simuladas en las pruebas.
 - **Mocks · perfil**: `emailVerified` es siempre `true`; no hay consumidor de demostración sin verificar ni sin dirección (`address: null`).

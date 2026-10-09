@@ -52,7 +52,7 @@ export function BottleCard({ collection, headingLevel = 3 }: { collection: Colle
         </p>
         <Heading className="m-0 font-display text-xl leading-tight font-medium">
           <Link
-            href={routes.collection(collection.slug)}
+            href={routes.collection(collection.winery.slug, collection.slug)}
             className={cn(
               "rounded-sm text-fg no-underline after:absolute after:inset-0 after:content-[''] group-hover:underline",
               focusRing,

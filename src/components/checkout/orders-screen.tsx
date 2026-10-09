@@ -175,7 +175,7 @@ export function OrderView({ order, editionSize }: { order: Order; editionSize: n
         </>
       )}
       <TextLink asChild variant="inline" className="inline-flex min-h-11 items-center justify-self-start text-sm">
-        <Link href={routes.collection(order.collection.slug)}>{t.collection}</Link>
+        <Link href={routes.collection(order.collection.winery.slug, order.collection.slug)}>{t.collection}</Link>
       </TextLink>
     </div>
   );
@@ -184,7 +184,9 @@ export function OrderView({ order, editionSize }: { order: Order; editionSize: n
 function OrderDetail({ id }: { id: string }) {
   const order = useOrder(id);
   // El pedido no trae el tamaño de la colección («Botella N de M»): sale del catálogo.
-  const collection = useCollection(order.data?.collection.slug ?? "", { enabled: Boolean(order.data) });
+  const collection = useCollection(order.data?.collection.winery.slug ?? "", order.data?.collection.slug ?? "", {
+    enabled: Boolean(order.data),
+  });
 
   if (order.isPending) return <ListSkeleton />;
   if (order.isError) {

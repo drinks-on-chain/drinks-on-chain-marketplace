@@ -22,15 +22,33 @@ export async function login(page: Page, credentials: { email: string; password: 
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
 }
 
-/** Crea una cuenta nueva desde `/crear-cuenta` y espera al perfil. */
-export async function signup(page: Page, email: string, fullName = "Lucía Vargas") {
-  await page.goto("/crear-cuenta");
+/** Contraseña de las cuentas que crean las pruebas. */
+export const NEW_PASSWORD = "una-clave-larga-2026";
+
+/** Rellena y envía el alta que haya en pantalla (página o hoja de compra) y espera el «Revisa tu correo». */
+export async function fillSignup(page: Page, email: string, fullName = "Lucía Vargas") {
   await page.getByRole("textbox", { name: /Nombre completo/ }).fill(fullName);
   await page.getByRole("textbox", { name: /Correo electrónico/ }).fill(email);
-  await page.getByLabel(/^Contraseña/).fill("una-clave-larga-2026");
+  await page.getByLabel(/^Contraseña/).fill(NEW_PASSWORD);
   await page.getByRole("checkbox", { name: /Acepto el aviso legal/ }).check();
   await page.getByRole("checkbox", { name: /mayor de 18 años/ }).check();
   await page.getByRole("button", { name: "Crear cuenta" }).click();
+  // [BORRADOR §13.1] 202 sin sesión: hay que confirmar el correo.
+  await expect(page.getByText("Revisa tu correo")).toBeVisible();
+}
+
+/**
+ * Cuenta nueva de principio a fin: alta en `/crear-cuenta`, enlace de verificación del buzón
+ * simulado, entrada y perfil.
+ */
+export async function signup(page: Page, email: string, fullName = "Lucía Vargas") {
+  await page.goto("/crear-cuenta");
+  await fillSignup(page, email, fullName);
+  const mail = await latestMail(page, email, "EMAIL_VERIFY");
+  await page.goto(`/verificar-correo?token=${encodeURIComponent(mail.token)}`);
+  await expect(page.getByText("Correo confirmado")).toBeVisible();
+  await page.getByRole("main").getByRole("link", { name: "Entrar", exact: true }).click();
+  await login(page, { email, password: NEW_PASSWORD });
   await expect(page.getByRole("heading", { level: 1, name: "Mi cuenta" })).toBeVisible();
 }
 

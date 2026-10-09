@@ -33,7 +33,7 @@ test("portada: marca, verificar una botella, destacados del catálogo y bodegas"
 test("de un destacado a su ficha", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("region", { name: "Destacados" }).getByRole("link", { name: CASE.name }).click();
-  await expect(page).toHaveURL(new RegExp(`/colecciones/${CASE.collectionSlug}$`));
+  await expect(page).toHaveURL(new RegExp(`${CASE.collectionPath}$`));
   await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
 });
 

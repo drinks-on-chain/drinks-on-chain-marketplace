@@ -25,6 +25,8 @@ export const CASE = (() => {
     winery: "Destilería Cinti Viejo",
     winerySlug: "destileria-cinti-viejo",
     collectionSlug: "singani-gran-reserva-2026",
+    /** Ficha de su colección: `/colecciones/{slugBodega}/{slug}` (el `slug` es único por bodega). */
+    collectionPath: "/colecciones/destileria-cinti-viejo/singani-gran-reserva-2026",
     /** Botella n.º 1, activa. */
     bottle: { code: first, formatted: format(first) },
     /** Código anulado de la serie 17 (etiqueta dañada). */
@@ -59,6 +61,7 @@ export const CATALOG = (() => {
 /** Colección en preventa sin precio ni lote embotellado. */
 export const NO_PRICE_COLLECTION = {
   slug: "singani-edicion-aniversario-2026",
+  path: "/colecciones/destileria-cinti-viejo/singani-edicion-aniversario-2026",
   name: "Singani Edición Aniversario 2026",
 };
 
