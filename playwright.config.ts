@@ -49,7 +49,8 @@ export default defineConfig({
     command: `pnpm build && pnpm exec next start --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 240_000,
+    // El build tarda varios minutos en una máquina cargada.
+    timeout: 600_000,
     env: REAL
       ? {
           NEXT_PUBLIC_MOCKS: "0",

@@ -93,13 +93,14 @@ test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin comp
   const errors = trackErrors(page);
   await page.goto("/catalogo");
   await cards(page).getByRole("link", { name: CASE.name }).click();
-  await expect(page).toHaveURL(new RegExp(`/catalogo/${CASE.collectionSlug}$`));
+  await expect(page).toHaveURL(new RegExp(`/colecciones/${CASE.collectionSlug}$`));
 
   await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
   await expect(page.getByText("Singani · Añada 2026")).toBeVisible();
   await expect(page.getByText(/^Bs\s280$/)).toBeVisible();
   await expect(page.getByText("A la venta", { exact: true })).toBeVisible();
   await expect(page.getByText(/^Quedan [\d.]+ de 60 botellas$/)).toBeVisible();
+  await expect(page.getByText("Edición numerada: «Botella N de 60»")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Notas de cata" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Maridaje" })).toBeVisible();
 
@@ -121,7 +122,7 @@ test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin comp
 });
 
 test("ficha en preventa sin precio: «Precio por anunciar»", async ({ page }) => {
-  await page.goto(`/catalogo/${NO_PRICE_COLLECTION.slug}`);
+  await page.goto(`/colecciones/${NO_PRICE_COLLECTION.slug}`);
   await expect(page.getByRole("heading", { level: 1, name: NO_PRICE_COLLECTION.name })).toBeVisible();
   await expect(page.getByText("Precio por anunciar")).toBeVisible();
   await expect(page.getByText("Preventa", { exact: true })).toBeVisible();
@@ -130,8 +131,41 @@ test("ficha en preventa sin precio: «Precio por anunciar»", async ({ page }) =
   await expect(page.getByText(/^Bs\s\d/)).toHaveCount(0);
 });
 
+test("preventa real: sin precio, 100 botellas disponibles y su portada servida por la API", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto("/colecciones/singani-preventa-2026");
+  await expect(page.getByRole("heading", { level: 1, name: "Singani Preventa 2026" })).toBeVisible();
+  await expect(page.getByText("Precio por anunciar")).toBeVisible();
+  await expect(page.getByText("Preventa", { exact: true })).toBeVisible();
+  await expect(page.getByText("Quedan 100 de 100 botellas")).toBeVisible();
+  await expect(page.getByText("Edición numerada: «Botella N de 100»")).toBeVisible();
+  await expect(page.getByText(/^Bs\s\d/)).toHaveCount(0);
+  // La portada llega por `/api/v1/public/collections/images/{id}` (el proxy del propio origen).
+  const cover = page.getByRole("main").locator("img").first();
+  await expect(cover).toHaveAttribute("src", /^\/api\/v1\/public\/collections\/images\//);
+  await expect
+    .poll(() => cover.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+    .toBeGreaterThan(0);
+  // Los hechos de la tokenización salen en el recorrido del lote.
+  await expect(page.getByRole("region", { name: "El lote, paso a paso" })).toContainText("Colección publicada");
+  await expectNoHorizontalScroll(page);
+  expect(errors).toEqual([]);
+});
+
+test("la dirección antigua de la ficha (/catalogo/{slug}) redirige a /colecciones/{slug}", async ({
+  page,
+  request,
+}) => {
+  const response = await request.get(`/catalogo/${CASE.collectionSlug}`, { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  expect(response.headers().location).toBe(`/colecciones/${CASE.collectionSlug}`);
+  await page.goto(`/catalogo/${CASE.collectionSlug}`);
+  await expect(page).toHaveURL(new RegExp(`/colecciones/${CASE.collectionSlug}$`));
+  await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
+});
+
 test("una colección que no existe: aviso y vuelta al catálogo", async ({ page }) => {
-  await page.goto("/catalogo/no-existe");
+  await page.goto("/colecciones/no-existe");
   await expect(page.getByRole("heading", { name: "No encontramos esta colección" })).toBeVisible();
   await page.getByRole("link", { name: "Volver al catálogo" }).click();
   await expect(page).toHaveURL(/\/catalogo$/);

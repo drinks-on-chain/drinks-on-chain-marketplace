@@ -407,6 +407,8 @@ export const es = {
     priceTba: "Precio por anunciar",
     pricePerBottle: "por botella",
     available: (available: string, total: string) => `Quedan ${available} de ${total} botellas`,
+    availableShort: (available: string) => `${available} disponibles`,
+    edition: (total: string) => `Edición numerada: «Botella N de ${total}»`,
     soldOut: "Sin botellas disponibles",
     readyDate: (date: string) => `Lista hacia el ${date}`,
     lotStage: "Estado del lote",

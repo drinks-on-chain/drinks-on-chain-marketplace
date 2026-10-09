@@ -19,6 +19,11 @@ import { ApiError } from "@/lib/api/errors";
 // la Etapa 4 (O3-PK-1) y **pueden cambiar sin aviso**. Hoy solo responden los mocks (cabecera
 // `X-Mock-Draft`), con precios y disponibilidad de ejemplo; el backend real responde 404.
 //
+// Desde la Ola 3 (contrato §13.1, mocks 0.6) cada colección lleva además `id` (el que recibe el
+// pedido), `saleState` y `counts.available`; `status` y `availability.available` son sus nombres
+// anteriores y se retirarán con el OpenAPI de la Etapa 4 (`src/lib/catalog/sale.ts`). El filtro de
+// la lista sigue llamándose `status`.
+//
 // Todo lo que depende de esta forma vive en `src/lib/catalog`: si el borrador cambia, cambia aquí.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 

@@ -123,6 +123,14 @@ Contrato: `plan/contratos/o3-tokenizacion.md` (§7.3 verificación pública, §1
 - [ ] Probar «anclado» contra el backend real cuando despliegue la Etapa 3 (`E2E_REAL_API=1` con un lote anclado en `E2E_LOT_CODE`)
 - [ ] Caso de «la huella no coincide» de extremo a extremo: hoy solo en pruebas unitarias (los mocks no tienen un escenario que altere el expediente)
 
+### Fase 2 · Ficha de colección y catálogo sobre el borrador (§13.1)
+
+- [x] Ficha en `/colecciones/{slug}`; `/catalogo/{slug}` (Ola 2) redirige con 308 · 2026-10-09
+- [x] `saleState` y `counts.available` del contrato §13.1 (`src/lib/catalog/sale.ts`); `status` y `availability.available` quedan como respaldo hasta el OpenAPI de la Etapa 4 · 2026-10-09
+- [x] Tarjeta con las botellas disponibles; ficha con «Quedan N de M botellas», la edición numerada («Botella N de M») y «Precio por anunciar» cuando no hay precio · 2026-10-09
+- [x] Colecciones reales de los mocks («Singani Preventa 2026» sin precio, «Singani Gran Reserva 2026» a la venta) con su portada servida por la API · 2026-10-09
+- [x] Contra el backend real el catálogo sigue diciendo «próximamente» (404 de la lista) · 2026-10-09
+
 ## Componentes pendientes en `@drinks-on-chain/ui`
 
 Lo que el Marketplace usa o necesitará y hoy no está en el paquete (0.3.1). Se añaden allí, no aquí.

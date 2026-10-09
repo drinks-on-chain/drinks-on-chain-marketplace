@@ -10,7 +10,7 @@ describe("routes", () => {
 
   it("catálogo, bodegas y la vuelta del lote a la botella", () => {
     expect(routes.catalog).toBe("/catalogo");
-    expect(routes.collection("singani-gran-reserva-2026")).toBe("/catalogo/singani-gran-reserva-2026");
+    expect(routes.collection("singani-gran-reserva-2026")).toBe("/colecciones/singani-gran-reserva-2026");
     expect(routes.wineries).toBe("/bodegas");
     expect(routes.winery("destileria-cinti-viejo")).toBe("/bodegas/destileria-cinti-viejo");
     expect(routes.lotFromBottle("CVJ-2026-SINGANI-004", "664TWFDA")).toBe("/b/CVJ-2026-SINGANI-004?desde=664TWFDA");

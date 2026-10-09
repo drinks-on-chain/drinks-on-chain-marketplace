@@ -2,13 +2,15 @@ import Link from "next/link";
 import { Badge, cn, focusRing } from "@drinks-on-chain/ui";
 import type { CollectionStatus, CollectionSummary } from "@/lib/catalog/api";
 import { es } from "@/lib/i18n/es";
+import { availableOf, isSoldOut, saleStateOf } from "@/lib/catalog/sale";
+import { fmtNumber } from "@/lib/format";
 import { routes } from "@/lib/links";
 import { BottleArt } from "./bottle-art";
 import { DataImage } from "./data-image";
 import { PriceTag } from "./price-tag";
 
 // Pendiente de mover a @drinks-on-chain/ui (`BottleCard`, 05 §3.2 y maqueta 02-marketplace).
-// [BORRADOR §17.1] Pinta una fila del borrador del catálogo.
+// [BORRADOR §13.1] Pinta una fila del borrador del catálogo (`saleState`, `counts.available`).
 
 export const STATUS_TONE: Record<CollectionStatus, "accent" | "success" | "neutral"> = {
   PRESALE: "accent",
@@ -40,6 +42,7 @@ export function CollectionArt({
 /** Tarjeta de una colección del catálogo: toda ella es el enlace a su ficha. */
 export function BottleCard({ collection, headingLevel = 3 }: { collection: CollectionSummary; headingLevel?: 2 | 3 }) {
   const Heading = `h${headingLevel}` as const;
+  const saleState = saleStateOf(collection);
   return (
     <article className="group relative grid content-start gap-3">
       <CollectionArt collection={collection} className="aspect-[4/5]" />
@@ -61,8 +64,13 @@ export function BottleCard({ collection, headingLevel = 3 }: { collection: Colle
         <p className="m-0 text-md text-fg-muted">{collection.winery.tradeName}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
           <PriceTag price={collection.price} />
-          <Badge tone={STATUS_TONE[collection.status]}>{es.catalog.statuses[collection.status]}</Badge>
+          <Badge tone={STATUS_TONE[saleState]}>{es.catalog.statuses[saleState]}</Badge>
         </div>
+        {isSoldOut(collection) ? null : (
+          <p className="m-0 font-ui text-sm text-fg-muted">
+            {es.catalog.availableShort(fmtNumber(availableOf(collection)))}
+          </p>
+        )}
       </div>
     </article>
   );
