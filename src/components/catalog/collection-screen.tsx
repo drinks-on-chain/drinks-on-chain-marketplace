@@ -7,6 +7,7 @@ import { Badge, Button, EmptyState, ErrorState, Skeleton, TextLink } from "@drin
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import type { Collection } from "@/lib/catalog/api";
 import { useCollection } from "@/lib/catalog/hooks";
+import { availableOf, editionSizeOf, isSoldOut, saleStateOf } from "@/lib/catalog/sale";
 import { env } from "@/lib/env";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { es } from "@/lib/i18n/es";
@@ -16,9 +17,10 @@ import { JourneyTimeline } from "../store/journey-timeline";
 import { PriceTag } from "../store/price-tag";
 
 // 2A · Ficha de una colección.
-// [BORRADOR §17.1] Pinta el borrador del catálogo: precio que puede faltar, disponibilidad,
-// estados PRESALE / ON_SALE / SOLD_OUT y la línea de tiempo del lote. Sin compra ni cuenta en
-// esta ola: la llamada a la acción es "Avísame", hacia la lista de espera de la landing.
+// [BORRADOR §13.1] Pinta el borrador del catálogo: precio que puede faltar, botellas disponibles
+// (`counts.available`), `saleState` PRESALE / ON_SALE / SOLD_OUT, la edición numerada («Botella N
+// de M») y la línea de tiempo del lote. Sin compra: la llamada a la acción es "Avísame", hacia la
+// lista de espera de la landing.
 
 const t = es.catalog;
 
@@ -35,12 +37,12 @@ function Block({ id, title, children }: { id: string; title: string; children: R
 
 /** Disponibilidad en palabras, sin cifras inventadas. */
 function availabilityText(collection: Collection): string {
-  const { available, total } = collection.availability;
-  if (collection.status === "SOLD_OUT" || available === 0) return t.soldOut;
-  return t.available(fmtNumber(available), fmtNumber(total));
+  if (isSoldOut(collection)) return t.soldOut;
+  return t.available(fmtNumber(availableOf(collection)), fmtNumber(editionSizeOf(collection)));
 }
 
 export function CollectionDetail({ collection }: { collection: Collection }) {
+  const saleState = saleStateOf(collection);
   return (
     <article className="px-5 py-8 md:px-8 md:py-14">
       <div className="grid gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:gap-14">
@@ -68,12 +70,13 @@ export function CollectionDetail({ collection }: { collection: Collection }) {
                 <PriceTag price={collection.price} size="lg" />
                 {collection.price ? <span className="font-ui text-sm text-fg-muted">{t.pricePerBottle}</span> : null}
               </p>
-              <Badge tone={STATUS_TONE[collection.status]} size="lg">
-                {t.statuses[collection.status]}
+              <Badge tone={STATUS_TONE[saleState]} size="lg">
+                {t.statuses[saleState]}
               </Badge>
             </div>
             <ul className="m-0 grid list-none gap-1 p-0 font-ui text-sm text-fg-muted">
               <li>{availabilityText(collection)}</li>
+              <li>{t.edition(fmtNumber(editionSizeOf(collection)))}</li>
               <li>
                 {t.lotStage}: {t.lotStages[collection.lotStage] ?? collection.lotStage}
               </li>

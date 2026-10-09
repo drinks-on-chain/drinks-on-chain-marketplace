@@ -20,7 +20,8 @@ export const routes = {
   lotFromBottle: (lotCode: string, bottleCode: string) =>
     `/b/${encodeURIComponent(lotCode)}?${FROM_BOTTLE_PARAM}=${encodeURIComponent(bottleCode)}`,
   catalog: "/catalogo",
-  collection: (slug: string) => `/catalogo/${encodeURIComponent(slug)}`,
+  /** Ficha de una colección (hasta la Ola 2 vivía en `/catalogo/{slug}`, que redirige aquí). */
+  collection: (slug: string) => `/colecciones/${encodeURIComponent(slug)}`,
   wineries: "/bodegas",
   winery: (slug: string) => `/bodegas/${encodeURIComponent(slug)}`,
 } as const;
