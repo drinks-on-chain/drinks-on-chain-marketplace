@@ -12,6 +12,14 @@ const schema = z.object({
   urlBodegas: publicUrl,
   /** Origen público del propio Marketplace (`app.`): URL canónicas y la del QR. */
   urlApp: publicUrl,
+  /**
+   * Bandera de la cuenta por correo (2B) y la compra (2C), **apagada por defecto**. Sus rutas
+   * (`/v1/me/consumer`, `/v1/orders`…) son un borrador que el backend aún no implementa: en
+   * producción y en las previews contra el backend real no debe verse ni un botón.
+   */
+  account: z.boolean(),
+  /** Clave pública de Cloudflare Turnstile; vacía = sin widget y token de prueba. */
+  turnstileSiteKey: z.string(),
 });
 
 export const env = schema.parse({
@@ -19,6 +27,8 @@ export const env = schema.parse({
   urlLanding: process.env.NEXT_PUBLIC_URL_LANDING ?? "",
   urlBodegas: process.env.NEXT_PUBLIC_URL_BODEGAS ?? "",
   urlApp: process.env.NEXT_PUBLIC_URL_APP ?? "",
+  account: process.env.NEXT_PUBLIC_MK_ACCOUNT === "1",
+  turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "",
 });
 
 /** Las herramientas de desarrollo (/__mocks) existen en local y en demos con mocks. */

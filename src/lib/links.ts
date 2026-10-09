@@ -24,7 +24,33 @@ export const routes = {
   collection: (slug: string) => `/colecciones/${encodeURIComponent(slug)}`,
   wineries: "/bodegas",
   winery: (slug: string) => `/bodegas/${encodeURIComponent(slug)}`,
+  // Cuenta por correo (2B) y pedidos (2C): solo existen con la bandera `NEXT_PUBLIC_MK_ACCOUNT`.
+  login: "/entrar",
+  signup: "/crear-cuenta",
+  forgotPassword: "/recuperar-contrasena",
+  /** Destino del enlace del correo de recuperación (`?token=`). */
+  resetPassword: "/restablecer-contrasena",
+  /** Destino del enlace del correo de verificación (`?token=`). */
+  verifyEmail: "/verificar-correo",
+  account: "/cuenta",
+  orders: "/cuenta/pedidos",
+  order: (id: string) => `/cuenta/pedidos/${encodeURIComponent(id)}`,
 } as const;
+
+/** Parámetro con la ruta interna a la que volver después de entrar. */
+export const NEXT_PARAM = "volver";
+
+/** Solo rutas internas (`/algo`): nunca otra web ni `//host`. */
+export function safeNextPath(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null;
+  return value;
+}
+
+/** `/entrar?volver=…` (o la ruta que se indique) para volver a `next` después. */
+export const withNext = (path: string, next: string | null | undefined) => {
+  const safe = safeNextPath(next);
+  return safe ? `${path}?${NEXT_PARAM}=${encodeURIComponent(safe)}` : path;
+};
 
 /** Origen con el que la landing registra las inscripciones que llegan desde aquí. */
 export const WAITLIST_SOURCE = "marketplace";
@@ -34,6 +60,9 @@ export function buildLinks(urls: { landing: string; bodegas: string; app: string
   return {
     /** Landing principal; `null` si no está configurada (el enlace no se muestra). */
     landing: join(urls.landing),
+    /** Aviso legal y privacidad de la landing (términos del registro); `null` sin landing. */
+    terms: join(urls.landing, "/aviso-legal"),
+    privacy: join(urls.landing, "/privacidad"),
     /** Lista de espera de la landing ("Avísame"); `null` si la landing no está configurada. */
     waitlist: join(urls.landing, `/lista-de-espera?src=${WAITLIST_SOURCE}`),
     /** Sitio de las bodegas; `null` si no está configurado. */

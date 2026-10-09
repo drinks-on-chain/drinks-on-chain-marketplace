@@ -70,12 +70,17 @@ export function missingCodes(count: number): string[] {
   });
 }
 
-/** Errores de página y de consola. Un 404 o un 429 esperado sale como "Failed to load resource": no cuenta. */
+// Ruido que no es del código: un 404 o un 429 esperado sale como "Failed to load resource", y el
+// navegador avisa así cuando una navegación corta la comprobación periódica del service worker de
+// MSW (solo existe con los mocks).
+const CONSOLE_NOISE = ["Failed to load resource", "Failed to update a ServiceWorker"];
+
+/** Errores de página y de consola (sin el ruido de `CONSOLE_NOISE`). */
 export function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
-    if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) errors.push(m.text());
+    if (m.type() === "error" && !CONSOLE_NOISE.some((noise) => m.text().startsWith(noise))) errors.push(m.text());
   });
   return errors;
 }

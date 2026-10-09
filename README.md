@@ -17,7 +17,7 @@ S2 · **Marketplace** del ecosistema **Drinks on Chain** (`app.`): sitio públic
 | `/trace/batch/{lote}` (URL del QR antiguo) → 308 a `/b/{lote}`                                                                                         | `next.config.ts`                                                            |
 | PWA básica: manifest, `theme-color`, iconos provisionales                                                                                              | `src/app/manifest.ts`, `public/icons/`, `scripts/generate-icons.mjs`        |
 | Cliente de API tipado contra `/api/v1/*` del propio origen, con el proxy que firma la IP del visitante                                                 | `src/lib/api/`, `src/proxy.ts`, `src/lib/api-proxy.ts`                      |
-| Datos de prueba `@drinks-on-chain/mocks` 0.5.0-rc.3 con MSW en el navegador y panel `/__mocks`                                                         | `src/app/providers.tsx` (`MocksGate`), `src/app/%5F%5Fmocks`                |
+| Datos de prueba `@drinks-on-chain/mocks` 0.6.0-rc.1 con MSW en el navegador y panel `/__mocks`                                                         | `src/app/providers.tsx` (`MocksGate`), `src/app/%5F%5Fmocks`                |
 | Rutas propias y enlaces a los otros sitios (hosts solo por `NEXT_PUBLIC_URL_*`)                                                                        | `src/lib/links.ts`                                                          |
 | Textos en español                                                                                                                                      | `src/lib/i18n/es.ts`                                                        |
 | Vitest + Testing Library (unitarias y de integración contra los handlers de los mocks), Playwright (390 px y 1280 px) con axe, ESLint, Prettier, CI    | `vitest.config.mts`, `playwright.config.ts`, `.github/workflows/ci.yml`     |
@@ -41,19 +41,37 @@ Códigos para probar con los mocks: la botella `664T-WFDA` (n.º 1 del «Singani
 | `pnpm dev` / `pnpm dev:mocks`              | Servidor de desarrollo sin / con MSW (puerto 3005)                                             |
 | `pnpm lint`, `pnpm typecheck`, `pnpm test` | Calidad (el typecheck genera antes los tipos de rutas de Next)                                 |
 | `pnpm e2e`                                 | Playwright contra un build de producción con mocks, en el puerto 3105 (en local usa tu Chrome) |
+| `pnpm e2e:sin-cuenta`                      | Las e2e de la bandera apagada: build sin `NEXT_PUBLIC_MK_ACCOUNT`, puerto 3106                 |
 | `pnpm format`                              | Prettier                                                                                       |
 | `node scripts/generate-icons.mjs`          | Regenera los iconos provisionales de la PWA                                                    |
 
 ## Variables de entorno
 
-| Variable                  | Uso                                                                                                                                                                                                                           |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_ORIGIN`              | **Solo servidor.** Origen del backend: `src/proxy.ts` reescribe `/api/v1/*` a `${API_ORIGIN}/v1/*`. Obligatoria sin mocks, también **en el build**. Desarrollo: `https://136.243.223.39.sslip.io`                             |
-| `PROXY_SHARED_SECRET`     | **Solo servidor, nunca `NEXT_PUBLIC_`.** Firma la IP del visitante para el backend: el mismo valor que en el backend del entorno. Sin ella, el límite de peticiones del pasaporte público contaría por la IP de la plataforma |
-| `NEXT_PUBLIC_MOCKS`       | `1` arranca MSW (intercepta `/api/v1/*` en el navegador) y habilita `/__mocks`; con `1` no hace falta `API_ORIGIN` y **nada se indexa** (son datos de demostración)                                                           |
-| `NEXT_PUBLIC_URL_APP`     | Origen público de este sitio, sin barra final (URL canónicas y metadatos). Coincide con `PASSPORT_BASE_URL` del backend, que es la URL que llevan los QR                                                                      |
-| `NEXT_PUBLIC_URL_LANDING` | Landing principal: enlace del pie y destino de "Avísame" (`{landing}/lista-de-espera?src=marketplace`). Vacía = "Avísame" no aparece                                                                                          |
-| `NEXT_PUBLIC_URL_BODEGAS` | Sitio de las bodegas (enlace del pie); vacía = no se muestra                                                                                                                                                                  |
+| Variable                         | Uso                                                                                                                                                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_ORIGIN`                     | **Solo servidor.** Origen del backend: `src/proxy.ts` reescribe `/api/v1/*` a `${API_ORIGIN}/v1/*`. Obligatoria sin mocks, también **en el build**. Desarrollo: `https://136.243.223.39.sslip.io`                             |
+| `PROXY_SHARED_SECRET`            | **Solo servidor, nunca `NEXT_PUBLIC_`.** Firma la IP del visitante para el backend: el mismo valor que en el backend del entorno. Sin ella, el límite de peticiones del pasaporte público contaría por la IP de la plataforma |
+| `NEXT_PUBLIC_MK_ACCOUNT`         | `1` enciende la cuenta por correo (2B) y la compra (2C). **Apagada por defecto**; solo con mocks y en las pruebas hasta la Ola 4                                                                                              |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Clave pública de Cloudflare Turnstile; vacía = sin widget y token de prueba (desarrollo y mocks)                                                                                                                              |
+| `NEXT_PUBLIC_MOCKS`              | `1` arranca MSW (intercepta `/api/v1/*` en el navegador) y habilita `/__mocks`; con `1` no hace falta `API_ORIGIN` y **nada se indexa** (son datos de demostración)                                                           |
+| `NEXT_PUBLIC_URL_APP`            | Origen público de este sitio, sin barra final (URL canónicas y metadatos). Coincide con `PASSPORT_BASE_URL` del backend, que es la URL que llevan los QR                                                                      |
+| `NEXT_PUBLIC_URL_LANDING`        | Landing principal: enlace del pie y destino de "Avísame" (`{landing}/lista-de-espera?src=marketplace`). Vacía = "Avísame" no aparece                                                                                          |
+| `NEXT_PUBLIC_URL_BODEGAS`        | Sitio de las bodegas (enlace del pie); vacía = no se muestra                                                                                                                                                                  |
+
+### Cuenta y compra (bandera `NEXT_PUBLIC_MK_ACCOUNT`)
+
+La cuenta por correo (2B) y la compra (2C) se construyen contra los mocks del borrador de la Etapa 4 (contrato de la Ola 3 §13.1) y están **detrás de `NEXT_PUBLIC_MK_ACCOUNT=1`, apagada por defecto**. `pnpm dev:mocks` y las e2e la encienden. **No se enciende en Vercel** (ni en producción ni en las previews de `dev`, que van contra el backend real) hasta que el backend tenga esas rutas: apagada, no hay enlaces, sus páginas responden 404 y no sale ninguna petición de sesión (`pnpm e2e:sin-cuenta` lo comprueba).
+
+Con `pnpm dev:mocks`: entra con `maria@tribu.test` (la contraseña de demostración está en `demoUsers` de `@drinks-on-chain/mocks/fixtures`) o crea una cuenta; compra «Singani Gran Reserva 2026» (`/colecciones/singani-gran-reserva-2026`) y elige en la pasarela de prueba aprobar, rechazar o demorar. Los correos (recuperar contraseña, verificar) quedan en el buzón simulado: `window.__docMocks.mailbox.latest({ to })`. Los pedidos de los mocks viven en memoria: una recarga los borra.
+
+| Ruta                                      | Qué es                                                                                    |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `/entrar`, `/crear-cuenta`                | Entrada y alta con correo y contraseña (términos, mayoría de edad, captcha, campo trampa) |
+| `/recuperar-contrasena`                   | Pide el enlace de recuperación                                                            |
+| `/restablecer-contrasena?token=`          | Contraseña nueva (enlace del correo)                                                      |
+| `/verificar-correo?token=`                | Confirma el correo (enlace del correo) o pide otro enlace                                 |
+| `/cuenta`                                 | Perfil y dirección informativa de solo lectura                                            |
+| `/cuenta/pedidos`, `/cuenta/pedidos/{id}` | Historial y pedido (pago pendiente, pago recibido y botellas)                             |
 
 ### Con el backend real (`NEXT_PUBLIC_MOCKS=0`)
 
@@ -73,7 +91,7 @@ Las pantallas no cambian; lo que cambia es lo que el backend ya publica:
 - **El pasaporte** (`PassportDocument`, contrato §12.5):
   - Botella: "Botella n.º N de M" con su código; **aviso si el código está anulado**. Lote: "Esta etiqueta identifica el lote". De la botella se pasa al lote (`/b/{lote}?desde={código}`) y del lote se vuelve a la botella.
   - Avisos de **lote retirado** y de **bodega no activa** (la bodega deja de enlazarse).
-  - Cabecera con nombre, tipo, añada y bodega; **expediente** (cerrado con su huella abreviada, o abierto), "Anclaje en la red: pendiente" y **descarga del expediente canónico** (JSON).
+  - Cabecera con nombre, tipo, añada y bodega; **expediente** (cerrado con su huella abreviada, o abierto), **descarga del expediente canónico** (JSON) y **anclaje en la red** (Ola 3, `src/lib/passport/anchor.ts`): sin anclaje, pendiente o anclado; anclado, el navegador recalcula el SHA-256 de los bytes canónicos con WebCrypto, lo compara con `dossier.hash` y con `anchor.memoHashHex`, y muestra las cuatro comprobaciones de `GET /v1/public/lots/{lotCode}/verification`, la cuenta de anclaje y el enlace a la transacción (solo desde `explorerUrl`). Con `anchor: null` (backend de la Ola 2) dice "Anclaje en la red: pendiente" y no pide nada más.
   - Origen y Denominación de Origen con las reglas usadas y la excepción legal; elaboración con cada etapa **aplicable** (la que no aplica al producto no aparece); registro del lote con `JourneyTimeline` (el **rol** de quien registró, nunca su nombre; registros tardíos y corregidos); laboratorio con cada parámetro frente a su límite y unidad; reglas de la instantánea; documentos públicos.
   - **Solo datos registrados**: donde el pasaporte trae `null` o `NOT_RECORDED` se escribe "No registrado". No hay reseñas, precio ni NFT.
 - **Comprobación de la botella** (`src/lib/passport/verify.ts`): si el pasaporte trae la prueba Merkle (`{ salt, path }`, **sin la raíz**), el navegador descarga el expediente canónico, recalcula su huella (`sha256Hex`), lee la raíz de `bottleCodes.merkleRoot` (`CanonicalDossierSchema`) y comprueba la prueba con `merkleLeaf` y `verifyMerkleProof` de los mocks (el padre es el SHA-256 de los **bytes** de los dos hijos, como en el backend). Si todo cuadra: "Este código pertenece al expediente cerrado". Si el expediente sigue abierto, se explica que la comprobación llegará al cerrarlo.

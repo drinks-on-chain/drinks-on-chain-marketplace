@@ -1,12 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Dos modos:
-// - Por defecto, las pruebas de flujo contra los mocks (sin backend), en el puerto 3105. Móvil
-//   primero: cada prueba pasa a 390 px (teléfono, con tacto) y a 1280 px (escritorio).
+// Tres modos:
+// - Por defecto, las pruebas de flujo contra los mocks (sin backend), en el puerto 3105, con la
+//   bandera de la cuenta y la compra encendida (`NEXT_PUBLIC_MK_ACCOUNT=1`). Móvil primero: cada
+//   prueba pasa a 390 px (teléfono, con tacto) y a 1280 px (escritorio).
+// - `E2E_ACCOUNT_OFF=1`: solo `sin-cuenta.spec.ts`, contra un build con la bandera **apagada**
+//   (como producción), en el puerto 3106: no debe quedar rastro de cuenta ni de compra.
 // - `E2E_REAL_API=1`: solo `backend-real.spec.ts`, contra el backend de `E2E_API_ORIGIN` (solo
 //   lectura), en el puerto 3115. Es el único modo que ejercita el pasaporte pedido en el servidor.
 const REAL = process.env.E2E_REAL_API === "1";
-const PORT = Number(process.env.E2E_PORT ?? (REAL ? 3115 : 3105));
+const ACCOUNT_OFF = !REAL && process.env.E2E_ACCOUNT_OFF === "1";
+const PORT = Number(process.env.E2E_PORT ?? (REAL ? 3115 : ACCOUNT_OFF ? 3106 : 3105));
+const FLAG_OFF_SPEC = "sin-cuenta.spec.ts";
 // En local se usa el Chrome instalado; en CI, el Chromium que instala Playwright.
 const channel = process.env.CI ? undefined : "chrome";
 
@@ -28,8 +33,8 @@ const desktop = {
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: REAL ? "backend-real.spec.ts" : "*.spec.ts",
-  testIgnore: REAL ? undefined : "backend-real.spec.ts",
+  testMatch: REAL ? "backend-real.spec.ts" : ACCOUNT_OFF ? FLAG_OFF_SPEC : "*.spec.ts",
+  testIgnore: REAL || ACCOUNT_OFF ? undefined : ["backend-real.spec.ts", FLAG_OFF_SPEC],
   fullyParallel: !REAL,
   workers: REAL ? 1 : undefined,
   forbidOnly: !!process.env.CI,
@@ -59,6 +64,9 @@ export default defineConfig({
         }
       : {
           NEXT_PUBLIC_MOCKS: "1",
+          // Cuenta (2B) y compra (2C): encendidas en las pruebas, salvo en el modo que comprueba
+          // que apagadas no dejan rastro.
+          NEXT_PUBLIC_MK_ACCOUNT: ACCOUNT_OFF ? "0" : "1",
           NEXT_PUBLIC_URL_APP: `http://localhost:${PORT}`,
           NEXT_PUBLIC_URL_LANDING: "https://landing.ejemplo.test",
           NEXT_PUBLIC_URL_BODEGAS: "https://bodegas.ejemplo.test",

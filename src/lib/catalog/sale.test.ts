@@ -20,7 +20,11 @@ describe("estado de venta de una colección", () => {
   });
 
   it("sin ellos (borrador de la Ola 2) cae en `status` y `availability`", () => {
-    const { saleState: _saleState, counts: _counts, ...old } = collection("singani-gran-reserva-2026");
+    const old: Partial<ReturnType<typeof collection>> &
+      Pick<ReturnType<typeof collection>, "status" | "availability" | "price"> =
+      collection("singani-gran-reserva-2026");
+    delete old.saleState;
+    delete old.counts;
     expect(saleStateOf(old)).toBe("ON_SALE");
     expect(availableOf(old)).toBe(60);
   });

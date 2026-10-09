@@ -89,7 +89,7 @@ test("catálogo: filtro por bodega y orden, en la URL", async ({ page }) => {
   await expect(cards(page).first().getByRole("link")).toHaveText(CATALOG.cheapest.name);
 });
 
-test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin compra)", async ({ page }) => {
+test("ficha de colección: precio, disponibilidad, edición numerada y lote", async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto("/catalogo");
   await cards(page).getByRole("link", { name: CASE.name }).click();
@@ -104,12 +104,11 @@ test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin comp
   await expect(page.getByRole("heading", { name: "Notas de cata" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Maridaje" })).toBeVisible();
 
-  // Sin compra ni cuenta: la acción lleva a la lista de espera de la landing.
-  await expect(page.getByRole("link", { name: "Avísame" })).toHaveAttribute(
-    "href",
-    "https://landing.ejemplo.test/lista-de-espera?src=marketplace",
-  );
-  await expect(page.getByRole("button", { name: /comprar|adquirir|pagar/i })).toHaveCount(0);
+  // Con la bandera de la cuenta (como corren estas pruebas) una colección con precio y botellas se
+  // compra; «Avísame» queda para las que no se pueden comprar (y para la bandera apagada:
+  // `sin-cuenta.spec.ts`).
+  await expect(page.getByRole("button", { name: "Comprar", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Avísame" })).toHaveCount(0);
 
   // Línea de tiempo del lote y paso a su pasaporte.
   const journey = page.getByRole("region", { name: "El lote, paso a paso" });
@@ -129,6 +128,12 @@ test("ficha en preventa sin precio: «Precio por anunciar»", async ({ page }) =
   await expect(page.getByText(/^Lista hacia el /)).toBeVisible();
   await expect(page.getByText("El pasaporte del lote se publica cuando se embotella.")).toBeVisible();
   await expect(page.getByText(/^Bs\s\d/)).toHaveCount(0);
+  // Sin precio no hay compra: la acción lleva a la lista de espera de la landing.
+  await expect(page.getByRole("link", { name: "Avísame" })).toHaveAttribute(
+    "href",
+    "https://landing.ejemplo.test/lista-de-espera?src=marketplace",
+  );
+  await expect(page.getByRole("button", { name: /comprar|adquirir|pagar/i })).toHaveCount(0);
 });
 
 test("preventa real: sin precio, 100 botellas disponibles y su portada servida por la API", async ({ page }) => {
