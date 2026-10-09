@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
+import { anchorStage } from "./anchor";
 import type { LotPassport } from "./types";
 
 // Metadatos de la página de un lote (título, descripción y Open Graph), a partir de su pasaporte.
@@ -15,7 +16,7 @@ export function lotDescription(lot: LotPassport): string {
     t.intro(es.productTypes[lot.productType], lot.vintage, lot.winery.tradeName, lot.winery.region),
     lot.origin.terroirs.length > 0 ? t.origin(lot.origin.terroirs.map((terroir) => terroir.parcelName)) : null,
     lot.bottling.bottles !== null ? t.bottles(lot.bottling.bottles) : null,
-    lot.dossier.status === "CLOSED" ? t.dossierClosed : null,
+    lot.dossier.status === "CLOSED" ? (anchorStage(lot) === "anchored" ? t.dossierAnchored : t.dossierClosed) : null,
     t.lot(lot.lotCode),
   ];
   return parts.filter(Boolean).join(" ");

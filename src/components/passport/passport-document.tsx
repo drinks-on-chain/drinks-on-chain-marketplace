@@ -10,14 +10,16 @@ import { apiHref } from "@/lib/api/paths";
 import { fmtDate, fmtDecimal, fmtNumber, shortHash } from "@/lib/format";
 import { es } from "@/lib/i18n/es";
 import { routes } from "@/lib/links";
-import type { BottleProofQuery } from "@/lib/passport/hooks";
+import type { AnchorVerificationQuery, BottleProofQuery } from "@/lib/passport/hooks";
 import { lotOf, type BottlePassport, type LotPassport, type Passport } from "@/lib/passport/types";
 import { CodeEntryForm } from "../code-entry-form";
+import { AnchorSection } from "./anchor-section";
 import { JourneyTimeline } from "../store/journey-timeline";
 
 // Pasaporte público de una botella o de un lote (contrato de la Ola 2 §12.5). Solo pinta lo que
 // llega: donde el pasaporte trae `null` o `NOT_RECORDED` se escribe "No registrado"; nunca un
 // valor inventado. De las personas solo sale el rol. Sin reseñas, precio ni NFT (otras olas).
+// Desde la Ola 3, el anclaje del expediente en la red y su verificación (`AnchorSection`).
 
 const t = es.passport;
 
@@ -268,7 +270,6 @@ function Dossier({ lot, download }: { lot: LotPassport; download: DossierDownloa
       ) : (
         <p className="m-0 text-lg text-fg-muted">{t.dossierOpenBody}</p>
       )}
-      <p className="m-0 mt-4 font-ui text-sm text-fg-subtle">{t.anchorPending}</p>
     </Section>
   );
 }
@@ -650,11 +651,13 @@ export type PassportDocumentProps = {
   fromBottle?: string | null;
   /** Comprobación de la botella contra el expediente (se ignora en un pasaporte de lote). */
   proof: BottleProofQuery;
+  /** Verificación del anclaje del expediente en la red (Ola 3 §7.3). */
+  anchor: AnchorVerificationQuery;
   download: DossierDownload;
 };
 
 /** El pasaporte entero: cabecera, qué identifica el código, avisos y las secciones del lote. */
-export function PassportDocument({ passport, fromBottle = null, proof, download }: PassportDocumentProps) {
+export function PassportDocument({ passport, fromBottle = null, proof, anchor, download }: PassportDocumentProps) {
   const lot = lotOf(passport);
   return (
     <article className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
@@ -685,6 +688,7 @@ export function PassportDocument({ passport, fromBottle = null, proof, download 
         <Identity passport={passport} fromBottle={fromBottle} />
         {passport.kind === "BOTTLE" ? <BottleProofNotice passport={passport} proof={proof} /> : null}
         <Dossier lot={lot} download={download} />
+        <AnchorSection lot={lot} query={anchor} />
         <Origin lot={lot} />
         <Process lot={lot} />
         <Section id="registro" title={t.timelineTitle}>

@@ -3,12 +3,8 @@ import { buildUrl } from "./client";
 import { errorEnvelope } from "./envelope";
 import { ApiError, NetworkError } from "./errors";
 
-/**
- * `GET` público que devuelve el cuerpo **tal cual**, sin el envoltorio `{ success, data }`
- * (p. ej. los bytes canónicos del expediente, que hay que recibir intactos para recalcular su
- * huella). Los errores sí llegan con el envoltorio común y se lanzan como `ApiError`.
- */
-export async function apiText(path: string, { signal }: { signal?: AbortSignal } = {}): Promise<string> {
+/** `GET` público sin el envoltorio `{ success, data }`; los errores sí llegan envueltos (`ApiError`). */
+async function rawGet(path: string, signal?: AbortSignal): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(buildUrl(path), {
@@ -30,5 +26,19 @@ export async function apiText(path: string, { signal }: { signal?: AbortSignal }
       retryAfter: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
     });
   }
-  return res.text();
+  return res;
+}
+
+/**
+ * `GET` público que devuelve el cuerpo **tal cual**, sin el envoltorio `{ success, data }`
+ * (p. ej. los bytes canónicos del expediente, que hay que recibir intactos para recalcular su
+ * huella). Los errores sí llegan con el envoltorio común y se lanzan como `ApiError`.
+ */
+export async function apiText(path: string, { signal }: { signal?: AbortSignal } = {}): Promise<string> {
+  return (await rawGet(path, signal)).text();
+}
+
+/** Como `apiText`, pero entrega los **bytes** recibidos, sin decodificarlos (huella con WebCrypto). */
+export async function apiBytes(path: string, { signal }: { signal?: AbortSignal } = {}): Promise<Uint8Array> {
+  return new Uint8Array(await (await rawGet(path, signal)).arrayBuffer());
 }

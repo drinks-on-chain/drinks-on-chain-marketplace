@@ -2,9 +2,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { fmtDate } from "@/lib/format";
-import type { BottleProofQuery, BottleProofState } from "@/lib/passport/hooks";
+import type { AnchorVerificationQuery, BottleProofQuery, BottleProofState } from "@/lib/passport/hooks";
+import { lotOf } from "@/lib/passport/types";
 import type { Passport } from "@/lib/passport/types";
-import { CASE_LOT, WINE_LOT, bottlePassport, lotPassport } from "@/test/passports";
+import {
+  CASE_LOT,
+  WINE_LOT,
+  anchorQuery,
+  bottlePassport,
+  lotPassport,
+  lotWithPendingAnchor,
+  lotWithoutAnchor,
+} from "@/test/passports";
 import { PassportDocument, type DossierDownload } from "./passport-document";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -14,12 +23,18 @@ const proofOf = (state: BottleProofState, retry = vi.fn()): BottleProofQuery => 
 
 function renderDocument(
   passport: Passport,
-  options: { proof?: BottleProofQuery; download?: DossierDownload; fromBottle?: string | null } = {},
+  options: {
+    proof?: BottleProofQuery;
+    anchor?: Partial<AnchorVerificationQuery>;
+    download?: DossierDownload;
+    fromBottle?: string | null;
+  } = {},
 ) {
   return render(
     <PassportDocument
       passport={passport}
       proof={options.proof ?? proofOf({ status: "none" })}
+      anchor={anchorQuery(lotOf(passport), options.anchor)}
       download={options.download ?? idleDownload}
       fromBottle={options.fromBottle ?? null}
     />,
@@ -280,7 +295,6 @@ describe("PassportDocument · expediente y comprobación", () => {
     const dossier = section("Expediente del lote");
     expect(dossier).toHaveTextContent(`Expediente cerrado el ${fmtDate(lot.dossier.closedAt!)}`);
     expect(dossier).toHaveTextContent(`${lot.dossier.hash!.slice(0, 8)}…${lot.dossier.hash!.slice(-8)}`);
-    expect(dossier).toHaveTextContent("Anclaje en la red: pendiente");
     await userEvent.setup().click(within(dossier).getByRole("button", { name: "Descargar expediente" }));
     expect(onDownload).toHaveBeenCalledOnce();
   });
@@ -331,5 +345,151 @@ describe("PassportDocument · expediente y comprobación", () => {
   it("un pasaporte de lote no enseña comprobación de botella", () => {
     renderDocument(lotPassport(), { proof: proofOf({ status: "verified" }) });
     expect(screen.queryByText("Este código pertenece al expediente cerrado")).toBeNull();
+  });
+});
+
+describe("PassportDocument · anclaje en la red", () => {
+  afterEach(cleanup);
+
+  it("sin anclaje, expediente abierto: lo dice sin prometer nada", () => {
+    renderDocument(lotPassport(WINE_LOT));
+    const anchor = section("Anclaje en la red");
+    expect(anchor).toHaveTextContent("Sin anclaje");
+    expect(anchor).toHaveTextContent("El expediente de este lote sigue abierto");
+    expect(within(anchor).queryByRole("link")).toBeNull();
+    expect(within(anchor).queryByRole("list")).toBeNull();
+  });
+
+  it("backend sin anclajes (anchor: null) con el expediente cerrado: «pendiente», como en la Ola 2", () => {
+    renderDocument(lotWithoutAnchor());
+    const anchor = section("Anclaje en la red");
+    expect(anchor).toHaveTextContent("Anclaje en la red: pendiente");
+    expect(anchor).toHaveTextContent("todavía no está registrada en la red");
+    expect(within(anchor).queryByRole("link")).toBeNull();
+    expect(anchor).not.toHaveTextContent("Cuenta de anclaje");
+  });
+
+  it("pendiente: la transacción existe y aún no se confirmó; cuenta de anclaje, sin enlace", () => {
+    const lot = lotWithPendingAnchor();
+    renderDocument(lot);
+    const anchor = section("Anclaje en la red");
+    expect(anchor).toHaveTextContent("Anclaje en la red: pendiente");
+    expect(anchor).toHaveTextContent("está en camino a la red de pruebas de Stellar");
+    expect(anchor).toHaveTextContent("Cuenta de anclaje");
+    expect(within(anchor).queryByRole("link")).toBeNull();
+    expect(anchor).not.toHaveTextContent("Comprobaciones");
+  });
+
+  it("anclado: recálculo que coincide, las cuatro comprobaciones con texto y el enlace del backend", () => {
+    const lot = lotPassport();
+    const anchorData = lot.dossier.anchor!;
+    renderDocument(lot, {
+      anchor: {
+        checksSource: "server",
+        checks: [
+          { key: "DOSSIER_CLOSED", pass: true, message: "El expediente se cerró.", source: "server" },
+          { key: "ANCHOR_CONFIRMED", pass: true, message: "Confirmado.", source: "server" },
+          { key: "MEMO_MATCHES_HASH", pass: false, message: "El memo no coincide.", source: "server" },
+          { key: "ANCHOR_ACCOUNT_OFFICIAL", pass: null, message: "Aún no aplica.", source: "server" },
+        ],
+      },
+    });
+    const anchor = section("Anclaje en la red");
+    expect(anchor).toHaveTextContent(`Anclado el ${fmtDate(anchorData.anchoredAt!)}`);
+    expect(anchor).toHaveTextContent("La huella recalculada coincide");
+    const checks = within(anchor).getAllByRole("listitem");
+    expect(checks).toHaveLength(4);
+    expect(checks[0]).toHaveTextContent("El expediente está cerrado");
+    expect(checks[0]).toHaveTextContent("Cumple");
+    expect(checks[1]).toHaveTextContent("La red confirmó el anclaje");
+    expect(checks[2]).toHaveTextContent("El memo de la transacción coincide con la huella");
+    expect(checks[2]).toHaveTextContent("No cumple");
+    expect(checks[2]).toHaveTextContent("El memo no coincide.");
+    expect(checks[3]).toHaveTextContent("La cuenta de anclaje es la oficial de Drinks on Chain");
+    expect(checks[3]).toHaveTextContent("Aún no aplica");
+    expect(anchor).toHaveTextContent("Comprobaciones hechas por el servidor de Drinks on Chain.");
+    // La cuenta entera está para lectores de pantalla y para copiar.
+    expect(anchor).toHaveTextContent(anchorData.account.slice(0, 6));
+    const link = within(anchor).getByRole("link", { name: /Ver la transacción en el explorador/ });
+    expect(link).toHaveAttribute("href", anchorData.explorerUrl);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("anclado sin `explorerUrl`: no se inventa ningún enlace", () => {
+    const lot = lotPassport();
+    lot.dossier.anchor = { ...lot.dossier.anchor!, explorerUrl: null };
+    renderDocument(lot);
+    expect(within(section("Anclaje en la red")).queryByRole("link")).toBeNull();
+  });
+
+  it("sin servicio de verificación: comprobaciones propias, y la cuenta oficial «no se puede comprobar aquí»", () => {
+    renderDocument(lotPassport());
+    const anchor = section("Anclaje en la red");
+    const checks = within(anchor).getAllByRole("listitem");
+    expect(checks).toHaveLength(4);
+    expect(checks[0]).toHaveTextContent("Cumple");
+    expect(checks[2]).toHaveTextContent("Cumple");
+    expect(checks[3]).toHaveTextContent("No se puede comprobar aquí");
+    expect(anchor).toHaveTextContent("El servicio de verificación aún no está disponible");
+  });
+
+  it("si la consulta al servidor falla, lo dice y deja reintentar", async () => {
+    const retryChecks = vi.fn();
+    renderDocument(lotPassport(), { anchor: { checksSource: "viewer-after-error", retryChecks } });
+    const anchor = section("Anclaje en la red");
+    expect(anchor).toHaveTextContent("No pudimos consultar el servicio de verificación");
+    await userEvent.setup().click(within(anchor).getByRole("button", { name: "Reintentar" }));
+    expect(retryChecks).toHaveBeenCalledOnce();
+  });
+
+  it("el recálculo no coincide: se dice con claridad, con las huellas a la vista y reintento", async () => {
+    const lot = lotPassport();
+    const retryFingerprint = vi.fn();
+    const computed = "0".repeat(64);
+    renderDocument(lot, {
+      anchor: { fingerprint: { status: "mismatch", computed, dossier: false, memo: false }, retryFingerprint },
+    });
+    const anchor = section("Anclaje en la red");
+    const alert = within(anchor).getByRole("alert");
+    expect(alert).toHaveTextContent("La huella recalculada no coincide");
+    expect(alert).toHaveTextContent("no es la que publica el pasaporte ni la registrada en la red");
+    expect(alert).toHaveTextContent(computed);
+    expect(alert).toHaveTextContent(lot.dossier.hash!);
+    expect(alert).toHaveTextContent("Puede ser una descarga incompleta");
+    expect(anchor).not.toHaveTextContent("La huella recalculada coincide");
+    await userEvent.setup().click(within(alert).getByRole("button", { name: "Reintentar" }));
+    expect(retryFingerprint).toHaveBeenCalledOnce();
+  });
+
+  it("el recálculo solo difiere de la registrada en la red: dice con cuál coincide", () => {
+    const lot = lotPassport();
+    renderDocument(lot, {
+      anchor: { fingerprint: { status: "mismatch", computed: lot.dossier.hash!, dossier: true, memo: false } },
+    });
+    expect(within(section("Anclaje en la red")).getByRole("alert")).toHaveTextContent(
+      "coincide con la que publica el pasaporte, pero no con la registrada en la red",
+    );
+  });
+
+  it("mientras recalcula y cuando no pudo descargar el expediente", () => {
+    const lot = lotPassport();
+    const { unmount } = renderDocument(lot, { anchor: { fingerprint: { status: "checking" } } });
+    expect(section("Anclaje en la red")).toHaveTextContent("recalculando su huella en tu dispositivo");
+    unmount();
+    renderDocument(lot, { anchor: { fingerprint: { status: "failed" } } });
+    expect(section("Anclaje en la red")).toHaveTextContent(
+      "No pudimos descargar el expediente para recalcular su huella",
+    );
+  });
+
+  it("los eventos nuevos de la línea de tiempo salen con su texto y como registro automático", () => {
+    renderDocument(lotPassport());
+    const log = section("Registro del lote");
+    const anchored = within(log)
+      .getAllByRole("listitem")
+      .find((item) => item.textContent?.includes("Expediente anclado en la red Stellar"));
+    expect(anchored).toBeDefined();
+    expect(anchored).toHaveTextContent("Registro automático");
   });
 });

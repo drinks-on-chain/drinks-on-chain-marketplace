@@ -1,8 +1,12 @@
-import { PublicCodePassportSchema } from "@drinks-on-chain/mocks";
+import {
+  PublicCodePassportSchema,
+  PublicDossierVerificationSchema,
+  type PublicDossierVerification,
+} from "@drinks-on-chain/mocks";
 import { api } from "@/lib/api/client";
 import { ApiError, NetworkError } from "@/lib/api/errors";
 import { apiPathFrom } from "@/lib/api/paths";
-import { apiText } from "@/lib/api/text";
+import { apiBytes, apiText } from "@/lib/api/text";
 import type { LotPassport, Passport, PassportState } from "./types";
 
 // Pasaporte público (contrato de la Ola 2 §12.1 y §12.4): sin sesión, con límite de peticiones
@@ -36,6 +40,32 @@ export const dossierPath = (lotCode: string) => `/v1/public/lots/${encodeURIComp
 export function fetchCanonicalDossier(lot: LotPassport, signal?: AbortSignal): Promise<string> | null {
   if (!lot.dossier.canonicalUrl) return null;
   return apiText(apiPathFrom(lot.dossier.canonicalUrl) ?? dossierPath(lot.lotCode), { signal });
+}
+
+/** Los mismos bytes canónicos, sin decodificar: sobre ellos se recalcula la huella con WebCrypto. */
+export function fetchCanonicalDossierBytes(lot: LotPassport, signal?: AbortSignal): Promise<Uint8Array> | null {
+  if (!lot.dossier.canonicalUrl) return null;
+  return apiBytes(apiPathFrom(lot.dossier.canonicalUrl) ?? dossierPath(lot.lotCode), { signal });
+}
+
+export type LotVerification = PublicDossierVerification;
+
+/**
+ * `GET /v1/public/lots/{lotCode}/verification` (contrato de la Ola 3 §7.3): las comprobaciones del
+ * anclaje que hizo el servidor. `null` si el backend aún no la publica (404 o 501): el visor se
+ * queda con lo que puede comprobar por sí mismo.
+ */
+export async function fetchLotVerification(lotCode: string, signal?: AbortSignal): Promise<LotVerification | null> {
+  try {
+    return await api(`/v1/public/lots/${encodeURIComponent(lotCode)}/verification`, {
+      auth: false,
+      signal,
+      schema: PublicDossierVerificationSchema,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 501)) return null;
+    throw error;
+  }
 }
 
 /** Traduce un fallo de la consulta al estado que pinta el visor. */
