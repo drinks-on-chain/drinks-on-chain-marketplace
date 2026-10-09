@@ -1,17 +1,17 @@
 # Roadmap del Marketplace (S2)
 
-Sub-etapas 2A–2F de `docs-front/03-roadmap-frontend.md` v3 §6, ordenadas por las olas del plan maestro. Contrato de la ola en curso: `plan/contratos/o2-erp-confiable.md` (§7.1 códigos de botella, §12 pasaporte público, §17 lo que construye cada app). Se marca `- [x] … · fecha` al terminar cada paso.
+Sub-etapas 2A–2F de `docs-front/03-roadmap-frontend.md` v3 §6, ordenadas por las olas del plan maestro. Contrato de la ola en curso: `plan/contratos/o3-tokenizacion.md` (§7.3 verificación del anclaje, §13.1 borrador de la Etapa 4); el de la Ola 2, `plan/contratos/o2-erp-confiable.md` (§7.1 códigos de botella, §12 pasaporte público, §17). Se marca `- [x] … · fecha` al terminar cada paso.
 
-| Sub-etapa                | Ola                                      | Qué                                                                                                                                               |
-| ------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2A Catálogo sin cuenta   | 2 (mocks) · 4 (real)                     | Escaparate, ficha de producto, historia de la bodega, página de bodega, búsqueda y filtros; el precio puede faltar (A-32)                         |
-| 2B Cuenta por correo     | 3 (mocks) · 4 (real)                     | Registro y entrada solo con correo (A-13), captcha, verificación, recuperar contraseña, perfil con la dirección informativa de solo lectura       |
-| 2C Compra                | 3 (mocks) · 4 (real)                     | `CheckoutSheet`, pago con `PaymentProvider` de prueba, aviso de "pago recibido" (A-23), historial de pedidos                                      |
-| 2D Cava y pase de canje  | 4 (cava) · 5 (pase)                      | Mi Cava con un NFT por botella, línea de tiempo del lote, puntos de canje, pase con QR y caducidad                                                |
-| 2E Visor público         | 2 (visor) · 4 (reseñas) · 5 (post-canje) | `/b/{código}` resuelve botella o lote sin cuenta (A-21): pasaporte real, huella del expediente, reseñas, vista post-canje, escáner con cámara     |
-| 2F Transversal y calidad | 4 · 5 (ayuda)                            | Notificaciones por correo, ayuda, PWA (manifest, iconos, `safe-area`, sin conexión en la cava), Lighthouse móvil ≥ 90, Playwright del flujo María |
+| Sub-etapa                | Ola                                                    | Qué                                                                                                                                               |
+| ------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2A Catálogo sin cuenta   | 2 (mocks) · 4 (real)                                   | Escaparate, ficha de producto, historia de la bodega, página de bodega, búsqueda y filtros; el precio puede faltar (A-32)                         |
+| 2B Cuenta por correo     | 3 (mocks) · 4 (real)                                   | Registro y entrada solo con correo (A-13), captcha, verificación, recuperar contraseña, perfil con la dirección informativa de solo lectura       |
+| 2C Compra                | 3 (mocks) · 4 (real)                                   | `CheckoutSheet`, pago con `PaymentProvider` de prueba, aviso de "pago recibido" (A-23), historial de pedidos                                      |
+| 2D Cava y pase de canje  | 4 (cava) · 5 (pase)                                    | Mi Cava con un NFT por botella, línea de tiempo del lote, puntos de canje, pase con QR y caducidad                                                |
+| 2E Visor público         | 2 (visor) · 3 (anclaje) · 4 (reseñas) · 5 (post-canje) | `/b/{código}` resuelve botella o lote sin cuenta (A-21): pasaporte real, huella del expediente, reseñas, vista post-canje, escáner con cámara     |
+| 2F Transversal y calidad | 4 · 5 (ayuda)                                          | Notificaciones por correo, ayuda, PWA (manifest, iconos, `safe-area`, sin conexión en la cava), Lighthouse móvil ≥ 90, Playwright del flujo María |
 
-## Ola 2 · ERP completo y trazabilidad confiable (O2-MK-1) ← en curso
+## Ola 2 · ERP completo y trazabilidad confiable (O2-MK-1) · cerrada
 
 ### Fase 1 · Andamiaje
 
@@ -105,6 +105,23 @@ Calidad:
 
 - [x] Pruebas unitarias del pasaporte, del catálogo y de las piezas de tienda, y de integración de la capa de datos contra los handlers de los mocks (esquemas, 404, 422, 429, prueba Merkle) · 2026-10-02
 - [x] E2E a 390 px y 1280 px: botella verificada, lote, código anulado, "No registrado", descarga del expediente, no encontrado, **demasiados intentos**, catálogo con filtros, ficha, bodegas, axe sin violaciones serias en cada pantalla y teclado · 2026-10-02
+
+## Ola 3 · Tokenización y cadena (O3-MK-1) ← en curso
+
+Contrato: `plan/contratos/o3-tokenizacion.md` (§7.3 verificación pública, §13 y §13.1 borrador de la Etapa 4). Contra `@drinks-on-chain/mocks` 0.6.0-rc.1 y `@drinks-on-chain/ui` 0.4.0-rc.1. El sitio está en producción contra el backend `v0.2.0`: lo único de esta ola que toca el backend real es la verificación del anclaje.
+
+### Fase 1 · Visor 2E: verificación del anclaje (real en esta ola)
+
+- [x] `@drinks-on-chain/mocks` 0.6.0-rc.1 y `@drinks-on-chain/ui` 0.4.0-rc.1 (`ChainAddress`, `ExplorerLink`); las imágenes que sirve la API (`/v1/public/collections/images/{id}`) se piden por el proxy propio · 2026-10-09
+- [x] Sección «Anclaje en la red» de `/b/{código}` con tres estados: sin anclaje (expediente abierto, o un backend que aún responde `anchor: null`: igual que contra `v0.2.0`, sin ninguna petición nueva), pendiente y anclado · 2026-10-09
+- [x] Anclado: descarga de los bytes canónicos, SHA-256 con WebCrypto en el navegador y comparación con `dossier.hash` y con `anchor.memoHashHex`; si no coincide se dice con cuál, con las huellas a la vista y reintento · 2026-10-09
+- [x] Las cuatro comprobaciones de `GET /v1/public/lots/{lotCode}/verification` con texto además del color; si la ruta responde 404 o 501, las que el visor deduce del pasaporte («No se puede comprobar aquí» para la cuenta oficial) · 2026-10-09
+- [x] Cuenta de anclaje y transacción con `ChainAddress`; enlace a la transacción **solo** desde `explorerUrl` del backend · 2026-10-09
+- [x] Una sola descarga del expediente para la prueba Merkle de la botella y para el anclaje · 2026-10-09
+- [x] Etapa `ANCHORED` y eventos públicos nuevos de la línea de tiempo (`NFT_MINTED`, `COLLECTION_PUBLISHED`, `DOSSIER_ANCHORED`, `TOKENS_REDEEMABLE`) · 2026-10-09
+- [x] Pruebas unitarias, de integración contra los handlers y e2e (`e2e/visor-anclaje.spec.ts`); `e2e/backend-real.spec.ts` comprueba el visor contra el backend actual · 2026-10-09
+- [ ] Probar «anclado» contra el backend real cuando despliegue la Etapa 3 (`E2E_REAL_API=1` con un lote anclado en `E2E_LOT_CODE`)
+- [ ] Caso de «la huella no coincide» de extremo a extremo: hoy solo en pruebas unitarias (los mocks no tienen un escenario que altere el expediente)
 
 ## Componentes pendientes en `@drinks-on-chain/ui`
 

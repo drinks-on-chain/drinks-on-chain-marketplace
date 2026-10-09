@@ -182,7 +182,7 @@ describe("metadatos del lote", () => {
     const description = lotDescription(lot);
     expect(description).toContain("Singani de la añada 2026 de Destilería Cinti Viejo");
     expect(description).toContain("2.950 botellas.");
-    expect(description).toContain("Expediente cerrado, con su huella.");
+    expect(description).toContain("Expediente cerrado, con su huella anclada en la red.");
     expect(description).toContain(CASE_LOT);
 
     const metadata = lotMetadata(lot);

@@ -55,8 +55,14 @@ describe("BottleCard", () => {
     expect(card).toHaveTextContent("Singani · 2026");
     expect(card).toHaveTextContent("Destilería Cinti Viejo");
     expect(card).toHaveTextContent("A la venta");
-    expect(nbsp(card.textContent ?? "")).toContain("Bs 185");
-    // Sin MSW (como aquí) las imágenes de demostración no existen: se pinta la ilustración.
+    expect(nbsp(card.textContent ?? "")).toContain("Bs 280");
+    // La portada de una colección real la sirve la API: se pide por el proxy del propio origen.
+    expect(card.querySelector("img")?.getAttribute("src")).toMatch(/^\/api\/v1\/public\/collections\/images\//);
+  });
+
+  it("sin MSW las imágenes de demostración no existen: se pinta la ilustración", () => {
+    render(<BottleCard collection={collection("singani-el-molino-2025")} />);
+    const card = screen.getByRole("article");
     expect(card.querySelector("img")).toBeNull();
     expect(card.querySelector("svg")).not.toBeNull();
   });
@@ -74,7 +80,7 @@ describe("CollectionDetail", () => {
   it("a la venta: precio, disponibilidad, lote con su línea de tiempo y enlace al pasaporte", () => {
     render(<CollectionDetail collection={collection("singani-gran-reserva-2026")} />);
     expect(screen.getByRole("heading", { level: 1, name: "Singani Gran Reserva 2026" })).toBeInTheDocument();
-    expect(screen.getByText("Quedan 1.269 de 2.950 botellas")).toBeInTheDocument();
+    expect(screen.getByText("Quedan 60 de 60 botellas")).toBeInTheDocument();
     expect(screen.getByText("A la venta")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Destilería Cinti Viejo" })).toHaveAttribute(
       "href",
@@ -169,5 +175,7 @@ describe("usableImageUrl", () => {
     expect(usableImageUrl("//otro.ejemplo/x.png")).toBeNull();
     expect(usableImageUrl("https://cdn.ejemplo.bo/x.jpg")).toBe("https://cdn.ejemplo.bo/x.jpg");
     expect(usableImageUrl("/uploads/x.jpg")).toBe("/uploads/x.jpg");
+    // Las imágenes que sirve la API van por el proxy del propio origen.
+    expect(usableImageUrl("/v1/public/collections/images/abc")).toBe("/api/v1/public/collections/images/abc");
   });
 });

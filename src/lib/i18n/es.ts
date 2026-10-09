@@ -108,6 +108,7 @@ export const es = {
       origin: (parcels: string[]) => `Origen: ${parcels.join(", ")}.`,
       bottles: (count: number) => `${new Intl.NumberFormat("es-BO").format(count)} botellas.`,
       dossierClosed: "Expediente cerrado, con su huella.",
+      dossierAnchored: "Expediente cerrado, con su huella anclada en la red.",
       lot: (lotCode: string) => `Origen, elaboración y laboratorio del lote ${lotCode}.`,
     },
 
@@ -141,7 +142,77 @@ export const es = {
     fingerprint: "Huella",
     fingerprintFull: "Ver la huella completa",
     fingerprintBody: "La huella es un resumen único del expediente: si un solo dato cambiara, sería otra.",
-    anchorPending: "Anclaje en la red: pendiente",
+
+    // Anclaje en la red (contrato de la Ola 3 §7.3, PUB-03).
+    anchor: {
+      title: "Anclaje en la red",
+      none: "Sin anclaje",
+      anchored: "Anclado",
+      anchoredOn: (date: string) => `Anclado el ${date}`,
+      noneOpenBody:
+        "El expediente de este lote sigue abierto. Cuando la bodega lo cierre, su huella se registrará en la red para que cualquiera pueda comprobarla.",
+      pendingLine: "Anclaje en la red: pendiente",
+      noneClosedBody:
+        "La huella de este expediente todavía no está registrada en la red. Cuando lo esté, aquí podrás comprobarla.",
+      pendingBody: (network: string) =>
+        `El registro de la huella está en camino a la ${network}. Cuando la red lo confirme, aquí podrás comprobarlo.`,
+      anchoredBody: (network: string) =>
+        `La huella del expediente quedó registrada en una transacción de la ${network}. Si el expediente cambiara, su huella ya no coincidiría con la registrada.`,
+      networks: {
+        TESTNET: "red de pruebas de Stellar",
+        PUBLIC: "red pública de Stellar",
+        LOCAL: "red local de pruebas",
+      } as Record<string, string>,
+      fingerprint: {
+        checking: "Descargando el expediente y recalculando su huella en tu dispositivo…",
+        matchTitle: "La huella recalculada coincide",
+        matchBody:
+          "Descargamos el expediente y recalculamos su huella en tu dispositivo: es la misma que publica la bodega y la que quedó registrada en la red.",
+        mismatchTitle: "La huella recalculada no coincide",
+        mismatchDossier:
+          "La huella que calculamos en tu dispositivo coincide con la registrada en la red, pero no con la que publica el pasaporte.",
+        mismatchMemo:
+          "La huella que calculamos en tu dispositivo coincide con la que publica el pasaporte, pero no con la registrada en la red.",
+        mismatchBoth:
+          "La huella que calculamos en tu dispositivo no es la que publica el pasaporte ni la registrada en la red.",
+        mismatchAdvice:
+          "Puede ser una descarga incompleta: vuelve a intentarlo. Si se repite, avisa a la bodega o a Drinks on Chain.",
+        computed: "Huella calculada en tu dispositivo",
+        published: "Huella que publica el pasaporte",
+        anchored: "Huella registrada en la red",
+        failedBody: "No pudimos descargar el expediente para recalcular su huella.",
+        unsupportedBody:
+          "Este navegador no permite recalcular la huella aquí. Puedes descargar el expediente y calcular su SHA-256 por tu cuenta.",
+      },
+      checksTitle: "Comprobaciones",
+      checksLoading: "Consultando las comprobaciones…",
+      checks: {
+        DOSSIER_CLOSED: "El expediente está cerrado",
+        ANCHOR_CONFIRMED: "La red confirmó el anclaje",
+        MEMO_MATCHES_HASH: "El memo de la transacción coincide con la huella",
+        ANCHOR_ACCOUNT_OFFICIAL: "La cuenta de anclaje es la oficial de Drinks on Chain",
+      },
+      results: {
+        pass: "Cumple",
+        fail: "No cumple",
+        notYet: "Aún no aplica",
+        unknown: "No se puede comprobar aquí",
+      },
+      sourceServer: "Comprobaciones hechas por el servidor de Drinks on Chain.",
+      sourceServerAt: (date: string) =>
+        `Comprobaciones hechas por el servidor de Drinks on Chain al confirmarse el anclaje (${date} UTC).`,
+      sourceViewer:
+        "El servicio de verificación aún no está disponible: estas comprobaciones salen de los datos del propio pasaporte.",
+      sourceViewerAfterError:
+        "No pudimos consultar el servicio de verificación: estas comprobaciones salen de los datos del propio pasaporte.",
+      network: "Red",
+      account: "Cuenta de anclaje",
+      transaction: "Transacción",
+      ledger: "Bloque de la red",
+      explorer: "Ver la transacción en el explorador",
+      explorerHelp:
+        "El explorador es un sitio independiente: ahí puedes ver la transacción y su memo sin pasar por Drinks on Chain.",
+    },
     download: "Descargar expediente",
     downloading: "Descargando…",
     downloadHelp: "Archivo JSON con el contenido exacto del expediente, para recalcular su huella.",
@@ -348,7 +419,7 @@ export const es = {
       RESTING: "En reposo",
       BOTTLED: "Embotellado",
       CERTIFIED: "Embotellado, con el expediente cerrado",
-      ANCHORED: "Embotellado, con el expediente cerrado",
+      ANCHORED: "Embotellado, con el expediente anclado en la red",
       REJECTED: "Rechazado",
       DISCARDED: "Retirado",
     } as Record<string, string>,
