@@ -131,9 +131,57 @@ Contrato: `plan/contratos/o3-tokenizacion.md` (§7.3 verificación pública, §1
 - [x] Colecciones reales de los mocks («Singani Preventa 2026» sin precio, «Singani Gran Reserva 2026» a la venta) con su portada servida por la API · 2026-10-09
 - [x] Contra el backend real el catálogo sigue diciendo «próximamente» (404 de la lista) · 2026-10-09
 
+### Fase 3 · 2B Cuenta por correo (mocks; bandera apagada por defecto)
+
+Contra el borrador §13.1 (`GET /v1/me/consumer`, alta con declaraciones) y las rutas de sesión del OpenAPI vigente. **Solo con `NEXT_PUBLIC_MK_ACCOUNT=1`** (`pnpm dev:mocks` y las e2e).
+
+- [x] Bandera `NEXT_PUBLIC_MK_ACCOUNT` (`env.account`, `src/lib/account/flag.ts`): sin ella no hay enlaces, las páginas responden 404 y no se llama a ninguna ruta de sesión · 2026-10-09
+- [x] `/entrar` y `/crear-cuenta`: solo correo y contraseña (A-13), términos y mayoría de edad por declaración, captcha (Turnstile; token de prueba sin clave) y campo trampa; errores del backend en su campo; vuelta a `?volver=` (solo rutas internas) · 2026-10-09
+- [x] El alta acepta la respuesta con sesión (OpenAPI vigente) y el `202 VERIFICATION_SENT` del borrador («Revisa tu correo») · 2026-10-09
+- [x] `/recuperar-contrasena`, `/restablecer-contrasena?token=` y `/verificar-correo?token=` (las rutas de los enlaces de los correos de los mocks), con reenvío de la verificación · 2026-10-09
+- [x] `/cuenta`: perfil con `AddressReadOnly` (dirección con `ChainAddress`, «La gestiona Drinks on Chain; no necesitas hacer nada», enlace al explorador solo desde `explorerUrl`), avisos por correo en lectura y cerrar sesión · 2026-10-09
+- [x] Sesión: acceso en memoria, renovación con la cookie al arrancar, aviso si el backend la cierra; una cuenta que no es de consumidor no entra · 2026-10-09
+- [x] «Entrar» / «Mi cuenta» en la cabecera y pestaña «Cuenta» en móvil · 2026-10-09
+- [ ] Sin passkeys, SMS ni proveedores sociales (R2, R6): no se construyen
+- [ ] Editar el nombre y los avisos por correo (el borrador no fija la ruta del consumidor)
+- [ ] Página propia de términos del Marketplace (hoy se enlaza el aviso legal y la privacidad de la landing)
+
+### Fase 4 · 2C Compra (mocks; misma bandera)
+
+Contra el borrador §13.1 (`/v1/orders`, `/v1/payments/test/{id}/simulate`).
+
+- [x] «Comprar» en la ficha de una colección con precio y botellas disponibles; sin precio («Precio por anunciar») o agotada sigue «Avísame» · 2026-10-09
+- [x] `CheckoutSheet` (hoja modal): cantidad → pago → confirmación, con `Idempotency-Key` por intento; el máximo por compra lo revela el servidor (`MKT_MAX_PER_ORDER`) y el campo lo recuerda · 2026-10-09
+- [x] Sin sesión, 2B se abre dentro de la hoja y al entrar (o crear la cuenta) sigue el pedido · 2026-10-09
+- [x] Pasarela de prueba: aprobar, rechazar o demorar; el pedido se consulta cada 3 s mientras espera el pago · 2026-10-09
+- [x] «Pago recibido» explícito **antes** de enseñar ningún NFT (A-23); después, «Botella N de M» y «Entrega en la red: pendiente» (el borrador no adelanta la entrega; con `transfer`, `TxStatusBadge`) · 2026-10-09
+- [x] Pago fallido y reserva caducada: sin cargo, botellas liberadas y nuevo intento · 2026-10-09
+- [x] `/cuenta/pedidos` (historial, vacío, sin conexión, error) y `/cuenta/pedidos/{id}` (un pago pendiente se retoma desde aquí) · 2026-10-09
+- [ ] `PaymentProvider` real y estados `DELIVERING` / `COMPLETED` con la entrega en la red (Ola 4)
+
+### Fase 5 · Bandera y calidad
+
+- [x] `pnpm e2e:sin-cuenta` (`E2E_ACCOUNT_OFF=1`, build sin la bandera, puerto 3106): ninguna pantalla enseña cuenta ni compra, sus ocho rutas responden 404 y no sale ninguna petición a `/v1/auth`, `/v1/me`, `/v1/users`, `/v1/orders` ni `/v1/payments`; la CI lo ejecuta después de las e2e · 2026-10-09
+- [x] E2E con mocks a 390 y 1280 px, con axe y sin errores de consola: `cuenta.spec.ts` (alta, entrada con teclado, recuperación y verificación con el buzón simulado) y `compra.spec.ts` (compra completa, máximo por compra, rechazo, reserva caducada, pago retomado, cuenta nueva dentro de la compra) · 2026-10-09
+- [x] Pruebas unitarias y de integración contra los handlers (`src/lib/account`, `src/lib/orders`, `src/components/account`, `src/components/checkout`) · 2026-10-09
+- [x] Visor comprobado contra el backend actual (`v0.2.0`) con `E2E_REAL_API=1` y el lote `CVJ-2026-SINGANI-004`: 6 pruebas en verde, sin peticiones nuevas y sin rastro de cuenta · 2026-10-09
+- [ ] No encender `NEXT_PUBLIC_MK_ACCOUNT` en Vercel (producción ni previews) hasta que el backend tenga las rutas de la Etapa 4
+
+### Lo que el contrato de la Ola 4 debería fijar (visto al construir 2B y 2C)
+
+- **Máximo por compra**: hoy el Marketplace solo lo conoce cuando el servidor rechaza el pedido (`details[0].expected`). Debería llegar en la colección pública (`maxPerOrder`, `null` = sin límite) o en una ruta de configuración pública.
+- **Tamaño de la colección en el pedido**: `Order.tokens[]` trae `bottleNumber` pero no el total; «Botella N de M» obliga a pedir además la colección. Añadir `collection.quota` (o `collectionSize` en cada NFT).
+- **Alta**: confirmar el `202 VERIFICATION_SENT`, los nombres `acceptTerms`, `ageDeclaration`, `captchaToken`, `website`, y si `verify-email` devuelve la sesión. El alta del OpenAPI vigente rechazaría esos campos (`forbidNonWhitelisted`).
+- **Códigos de error**: los definitivos de `POST /v1/orders` y de la pasarela (`MKT_…`), el del correo repetido en el alta (hoy `CONFLICT` genérico) y qué responde un pago ya resuelto.
+- **Reserva**: `reservedUntil` como instante y, si se quiere una cuenta atrás, la hora del servidor (o los segundos restantes) para no depender del reloj del teléfono.
+- **Seguimiento del pago**: intervalo de consulta recomendado y cuándo dejar de consultar (o un aviso del servidor), y el paso por `DELIVERING` → `COMPLETED` con `tokens[].transfer`.
+- **Catálogo**: retirar `status` y `availability.available` en favor de `saleState` y `counts.available`, el nombre del filtro (`status` o `saleState`) y si `availability.total` es la cuota.
+- **Perfil**: ruta para cambiar nombre y avisos del consumidor, y `emailVerified` real.
+- **Cuenta oficial de anclaje** en el pasaporte o en una ruta pública estable, para que el visor pueda comprobarla sin `…/verification`.
+
 ## Componentes pendientes en `@drinks-on-chain/ui`
 
-Lo que el Marketplace usa o necesitará y hoy no está en el paquete (0.3.1). Se añaden allí, no aquí.
+Lo que el Marketplace usa o necesitará y hoy no está en el paquete (0.4.0-rc.1). Se añaden allí, no aquí.
 
 Hechos en local (`src/components/store/`, con la nota "Pendiente de mover a @drinks-on-chain/ui"):
 
@@ -143,6 +191,13 @@ Hechos en local (`src/components/store/`, con la nota "Pendiente de mover a @dri
 - `CodeInput`: campo de código (mayúsculas a la vista, cifras alineadas, sin autocorrección).
 - `NativeSelect`: selector nativo con el aspecto de los campos. Se queda en local hasta que se corrija el `Select` del paquete (ver abajo).
 - `DataImage`: imagen de los datos con respaldo (ilustración o monograma) si falta o falla.
+
+Hechos en local en la Ola 3 (`src/components/account/` y `src/components/checkout/`):
+
+- `AuthPanel` (`AuthSheet` del sistema de diseño: entrar o crear cuenta, en página o dentro de una hoja), `Captcha` (Turnstile, el mismo patrón que el Backoffice: candidato a compartirse) y `Honeypot`.
+- `AddressReadOnly`: dirección custodial de solo lectura sobre `ChainAddress` y `ExplorerLink`.
+- `CheckoutSheet` (sobre `BottomSheet` y `Stepper`), con su selector de cantidad (`Input` + dos `IconButton`).
+- `OrderStatusBadge` (`OrderStatus`), `PaymentPanel` (pasarela de prueba), `PaymentReceived` y `OrderBottles`.
 
 Ajustes en componentes que ya existen:
 
@@ -157,7 +212,24 @@ Por hacer en sus olas:
 
 - 2E: `TastingCards`, `StarRating`, `ReviewForm`, `CameraScanner` (O4-PK-1).
 - 2A: `StickyBuyBar`, `HeroBanner`.
-- 2B–2D: `AuthSheet`, `AddressReadOnly`, `CheckoutSheet`, `OrderStatus`, `TokenCard`, `PickupPointPicker`, `ClaimTicket`.
+- 2D: `TokenCard`, `PickupPointPicker`, `ClaimTicket` (los de 2B y 2C están hechos en local, arriba).
+
+## Huecos vistos en `@drinks-on-chain/mocks` 0.6.0-rc.1 y `@drinks-on-chain/ui` 0.4.0-rc.1 (Ola 3)
+
+Sin ajustes locales en ninguno de los dos: lo que falta está anotado para sus pistas.
+
+- **Mocks · alta del borrador**: `POST /v1/auth/signup` es el del OpenAPI vigente (201 con sesión; ignora `acceptTerms`, `ageDeclaration`, `captchaToken` y `website`). El `202 VERIFICATION_SENT`, el captcha rechazado y el campo trampa del alta solo se prueban aquí con respuestas simuladas en las pruebas.
+- **Mocks · perfil**: `emailVerified` es siempre `true`; no hay consumidor de demostración sin verificar ni sin dirección (`address: null`).
+- **Mocks · pedidos**: viven en memoria (una recarga los borra, aunque la sesión y las cuentas sí persisten), no hay pedidos sembrados para la consumidora de demostración y no existe un escenario de `/__mocks` con pedidos en cada estado.
+- **Mocks · máximo por compra**: no hay forma de conocerlo antes de pedir (ver «Lo que el contrato de la Ola 4 debería fijar»).
+- **Mocks · anclaje**: no hay escenario con el expediente alterado (huella que no coincide), con `…/verification` en 404/501 ni con una comprobación en `false`; `PASSPORT_CASES` no tiene un caso `anchorPending` (se usa el escenario `anclaje-pendiente`).
+- **Mocks · MSW y Playwright**: las peticiones las atiende el service worker, así que una e2e no puede sustituir una respuesta concreta (`page.route` no las ve): esos casos quedan en pruebas de integración.
+- **UI · `ChainAddress`**: sin variante editorial ni tamaño táctil de 44 px para el botón de copiar (32 px).
+- **UI · `ExplorerLink`**: `text-xs` y `whitespace-nowrap` fijos; en el visor se agranda con clases.
+- **UI · `Checkbox`**: no enlaza por sí sola un mensaje de error (`aria-describedby` a mano) ni entra en `Field`.
+- **UI · `Stepper`**: en 390 px, tres pasos con etiqueta caben justos; sin variante compacta.
+- **UI · `BottomSheet`**: no ofrece mover el foco al cambiar de paso (se hace con un título enfocable).
+- **UI · `Input` con `prefix`/`sufijo` interactivos**: funciona, pero no hay un `QuantityInput`.
 
 ## Backend ↔ `@drinks-on-chain/mocks` 0.5.0-rc.2 y rc.3
 
@@ -175,6 +247,5 @@ Los huecos de la rc.1 quedaron resueltos en la rc.2 (fechas de la fermentación,
 
 ## Olas siguientes
 
-- **Ola 3** (O3-MK-1): 2B cuenta por correo y 2C compra, contra los mocks de la Etapa 4.
 - **Ola 4** (O4-MK-1): 2A–2C contra el backend real, 2D cava con NFT por botella, reseñas en 2E, 2F transversal (PWA completa, Lighthouse móvil ≥ 90, flujo María).
 - **Ola 5**: pase de canje (2D), vista post-canje (2E) y ayuda (2F).
