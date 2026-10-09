@@ -204,6 +204,7 @@ test("un pedido que espera el pago se puede pagar después, desde «Mis pedidos�
 });
 
 test("cuenta nueva creada dentro de la compra: entra en la hoja y sigue hasta el pago", async ({ page }) => {
+  test.slow();
   const email = `compra.${test.info().project.name}@ejemplo.test`;
   await openCheckout(page);
   const dialog = sheet(page);

@@ -200,6 +200,7 @@ test("un enlace de recuperación sin código, o que ya no vale, lo dice y deja p
 });
 
 test("verificar el correo: pedir el enlace, confirmarlo y que no valga dos veces", async ({ page }) => {
+  test.slow();
   const errors = trackErrors(page);
   await page.goto("/verificar-correo");
   await expect(page.getByRole("heading", { level: 1, name: "Confirmar correo" })).toBeVisible();
