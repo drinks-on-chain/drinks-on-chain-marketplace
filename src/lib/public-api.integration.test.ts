@@ -323,6 +323,8 @@ describe("catálogo (BORRADOR §17.1)", () => {
       "destileria-cinti-viejo",
     ]);
     await expect(findCollectionsBySlug("no-existe")).resolves.toEqual([]);
+    // La ruta de un solo segmento (`/v1/public/collections/{slug}`) se retiró en mocks 0.6.0-rc.3:
+    // la dirección antigua de la ficha se resuelve con la lista, como aquí.
     // Los `id` del catálogo no se repiten (son la clave de las listas).
     const ids = (await fetchCollections({}, { limit: 100 })).items.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);

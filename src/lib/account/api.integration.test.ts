@@ -99,10 +99,17 @@ describe("crear cuenta", () => {
 
     // Sin confirmar se puede entrar, y el perfil lo dice.
     await login({ email: input.email, password: input.password });
-    await expect(fetchConsumerProfile()).resolves.toMatchObject({ email: input.email, emailVerified: false });
+    // …y todavía no tiene dirección: se asigna al confirmar el correo (mocks 0.6.0-rc.3).
+    await expect(fetchConsumerProfile()).resolves.toMatchObject({
+      email: input.email,
+      emailVerified: false,
+      address: null,
+    });
 
     await expect(verifyEmail(mail!.token!)).resolves.toEqual({ signedIn: false });
-    await expect(fetchConsumerProfile()).resolves.toMatchObject({ emailVerified: true });
+    const verified = await fetchConsumerProfile();
+    expect(verified.emailVerified).toBe(true);
+    expect(isValidStrKey(verified.address?.address ?? "")).toBe(true);
     // Una cuenta nueva no tiene pedidos.
     await expect(fetchOrders()).resolves.toMatchObject({ total: 0 });
   });

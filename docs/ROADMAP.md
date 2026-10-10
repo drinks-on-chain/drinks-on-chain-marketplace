@@ -177,6 +177,13 @@ Contra el borrador §13.1 (`/v1/orders`, `/v1/payments/test/{id}/simulate`).
 - [x] E2E del visor con los escenarios `huella-alterada` («La huella recalculada no coincide», con las tres huellas y reintento) y `verificacion-no-encontrada` (comprobaciones deducidas del pasaporte) · 2026-10-09
 - [ ] La redirección de la dirección antigua se resuelve en el navegador (el catálogo es un borrador que solo existe en los mocks): responde 200 y, si no se encuentra, pinta el aviso sin estado 404. Con el catálogo real (Ola 4), resolverla en el servidor
 
+### Fase 7 · Mocks 0.6.0-rc.3 y backend con la Etapa 3
+
+- [x] `@drinks-on-chain/mocks` 0.6.0-rc.3: `GET /v1/public/collections/{slug}` retirada (la dirección antigua `/colecciones/{slug}` ya se resolvía con la lista del catálogo) · 2026-10-10
+- [x] Alta sin verificar con `address: null`: el perfil dice «Tu dirección se crea al confirmar tu correo», sin error · 2026-10-10
+- [x] E2E del visor con `verificacion-no-coincide`: `MEMO_MATCHES_HASH` «No cumple», el resto a la vista · 2026-10-10
+- [x] Visor comprobado contra el backend real con la Etapa 3 desplegada (`E2E_REAL_API=1`) · 2026-10-10
+
 ### Lo que el contrato de la Ola 4 debería fijar (visto al construir 2B y 2C)
 
 - **Máximo por compra**: resuelto en el borrador con `GET /v1/public/purchase-settings` (mocks rc.2); falta fijar si puede variar por bodega (`compra.maxBotellasPorCompra` admite ajuste por bodega) y cómo se expresa «sin límite».

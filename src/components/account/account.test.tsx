@@ -191,6 +191,21 @@ describe("perfil y dirección informativa", () => {
     expect(within(region).queryByRole("link")).toBeNull();
   });
 
+  it("correo sin confirmar: la dirección se crea al confirmarlo, y se dice sin error", () => {
+    render(
+      <ProfileView
+        profile={{ ...profile, emailVerified: false, address: null }}
+        onLogout={vi.fn()}
+        loggingOut={false}
+      />,
+    );
+    const region = screen.getByRole("region", { name: "Tu dirección en la red" });
+    expect(region).toHaveTextContent("Tu dirección se crea al confirmar tu correo.");
+    expect(region).toHaveTextContent("La gestiona Drinks on Chain; no necesitas hacer nada.");
+    expect(within(region).queryByRole("alert")).toBeNull();
+    expect(within(region).queryByRole("link")).toBeNull();
+  });
+
   it("ProfileView: datos, correo confirmado, pedidos, avisos y cerrar sesión", async () => {
     const onLogout = vi.fn();
     render(<ProfileView profile={profile} onLogout={onLogout} loggingOut={false} />);

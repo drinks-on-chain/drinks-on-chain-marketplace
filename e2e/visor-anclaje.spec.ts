@@ -173,3 +173,28 @@ test("verificación que aún no existe (404): el visor muestra lo que deduce del
   expect(errors).toEqual([]);
   await page.goto("/?mock=normal");
 });
+
+test("el servidor dice que el memo no coincide con la huella: se muestra con claridad, sin ocultar el resto", async ({
+  page,
+}) => {
+  const errors = trackErrors(page);
+  // Anclaje confirmado, pero la verificación del servidor trae `MEMO_MATCHES_HASH` en `false`.
+  await page.goto(`/b/${CASE.lotCode}?mock=verificacion-no-coincide`);
+  const region = section(page);
+  const checks = region.getByRole("list", { name: "Comprobaciones" }).getByRole("listitem");
+  await expect(checks).toHaveCount(4);
+  const memo = checks.filter({ hasText: "El memo de la transacción coincide con la huella" });
+  await expect(memo.getByText("No cumple", { exact: true })).toBeVisible();
+  // Las demás siguen diciendo lo suyo, cada una con su palabra.
+  await expect(
+    checks.filter({ hasText: "El expediente está cerrado" }).getByText("Cumple", { exact: true }),
+  ).toBeVisible();
+  await expect(checks.getByText("No cumple", { exact: true })).toHaveCount(1);
+  await expect(region).toContainText("Comprobaciones hechas por el servidor de Drinks on Chain");
+  // Lo que el navegador recalcula con el expediente descargado se dice aparte.
+  await expect(region.getByText("La huella recalculada coincide")).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  expect(await axe(page)).toEqual([]);
+  expect(errors).toEqual([]);
+  await page.goto("/?mock=normal");
+});

@@ -542,6 +542,7 @@ export const es = {
       label: "Dirección",
       explorer: "Ver la dirección en el explorador",
       none: "Todavía no tienes una dirección asignada. Se crea sola: no necesitas hacer nada.",
+      afterVerification: "Tu dirección se crea al confirmar tu correo. No necesitas hacer nada más.",
     },
     gate: {
       title: "Entra para continuar",
