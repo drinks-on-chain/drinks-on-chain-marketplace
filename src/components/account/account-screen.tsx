@@ -42,7 +42,14 @@ export function AccountGate({ title, children }: { title: string; children: Reac
  * `AddressReadOnly` (pendiente de mover a `@drinks-on-chain/ui`): la dirección custodial del
  * consumidor, solo para leer. El enlace al explorador es el `explorerUrl` que entrega el backend.
  */
-export function AddressReadOnly({ address }: { address: ConsumerProfile["address"] }) {
+export function AddressReadOnly({
+  address,
+  emailVerified = true,
+}: {
+  address: ConsumerProfile["address"];
+  /** Sin confirmar el correo aún no hay dirección: se dice, no es un error. */
+  emailVerified?: boolean;
+}) {
   return (
     <section aria-labelledby="direccion" className="grid gap-3 rounded-lg border border-border bg-bg-raised p-5">
       <h2 id="direccion" className="m-0 font-ui text-lg font-semibold">
@@ -67,7 +74,7 @@ export function AddressReadOnly({ address }: { address: ConsumerProfile["address
           ) : null}
         </>
       ) : (
-        <p className="m-0 text-sm text-fg-muted">{t.address.none}</p>
+        <p className="m-0 text-sm text-fg-muted">{emailVerified ? t.address.none : t.address.afterVerification}</p>
       )}
     </section>
   );
@@ -130,7 +137,7 @@ export function ProfileView({
         <ChevronRight aria-hidden className="size-5 shrink-0 text-fg-muted" />
       </Link>
 
-      <AddressReadOnly address={profile.address} />
+      <AddressReadOnly address={profile.address} emailVerified={profile.emailVerified} />
 
       <section aria-labelledby="avisos" className="grid gap-2">
         <h2 id="avisos" className="m-0 font-ui text-lg font-semibold">

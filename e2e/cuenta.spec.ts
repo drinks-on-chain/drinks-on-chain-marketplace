@@ -52,6 +52,10 @@ test("crear cuenta: declaraciones obligatorias, correo por confirmar, perfil y d
   await expect(page.getByText("Lucía Vargas")).toBeVisible();
   await expect(page.getByText("Correo sin confirmar")).toBeVisible();
   await expect(page.getByRole("link", { name: "Pedir otro enlace" })).toBeVisible();
+  // La dirección se asigna al confirmar el correo: se dice, sin error.
+  const pending = page.getByRole("region", { name: "Tu dirección en la red" });
+  await expect(pending).toContainText("Tu dirección se crea al confirmar tu correo.");
+  await expect(pending.getByRole("button", { name: /Copiar dirección/ })).toHaveCount(0);
 
   // El enlace del correo lo confirma (la sesión se recupera tras la recarga).
   await page.goto(`/verificar-correo?token=${encodeURIComponent(mail.token)}`);
