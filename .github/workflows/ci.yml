@@ -42,8 +42,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      # Levanta su propio servidor (build con NEXT_PUBLIC_MOCKS=1) en el puerto 3105.
+      # Levanta su propio servidor (build con NEXT_PUBLIC_MOCKS=1 y la bandera de la cuenta) en el 3105.
       - run: pnpm e2e
+      # Otro build con la bandera apagada, como producción: sin rastro de cuenta ni de compra.
+      - run: pnpm e2e:sin-cuenta
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

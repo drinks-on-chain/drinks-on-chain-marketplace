@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Spinner, Toaster } from "@drinks-on-chain/ui";
+import { Spinner, Toaster, toast } from "@drinks-on-chain/ui";
+import { useSessionBootstrap } from "@/lib/account/hooks";
 import { env } from "@/lib/env";
 import { es } from "@/lib/i18n/es";
 import { makeQueryClient } from "@/lib/query-client";
@@ -28,14 +29,26 @@ function MocksGate({ children }: { children: ReactNode }) {
 }
 
 /**
- * Sitio público: en esta ola no hay sesión, así que no se recupera nada al arrancar ni se
- * redirige a ningún login (la cuenta por correo llega en la Ola 3, bloque 2B).
+ * Recupera la sesión del consumidor al arrancar (solo con la bandera `NEXT_PUBLIC_MK_ACCOUNT`;
+ * sin ella no se llama a nada) y avisa si el backend la da por terminada. No redirige: el sitio
+ * es público y cada página de la cuenta ofrece entrar donde hace falta.
+ */
+function SessionBootstrap() {
+  const onEnded = useCallback(() => toast({ title: es.account.sessionEnded, tone: "warning" }), []);
+  useSessionBootstrap(onEnded);
+  return null;
+}
+
+/**
+ * Sitio público: todo se recorre sin cuenta. La cuenta por correo (2B) y la compra (2C) solo
+ * existen con su bandera, que está apagada contra el backend real.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(makeQueryClient);
   return (
     <MocksGate>
       <QueryClientProvider client={queryClient}>
+        <SessionBootstrap />
         {children}
         <Toaster />
       </QueryClientProvider>

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { CASE, CATALOG, NO_PRICE_COLLECTION, expectNoHorizontalScroll, shellNav, trackErrors } from "./support";
+import { CASE, CATALOG, NO_PRICE_COLLECTION, axe, expectNoHorizontalScroll, shellNav, trackErrors } from "./support";
 
 // 2A · Catálogo sin cuenta y páginas de bodega, contra los mocks.
 // [BORRADOR §17.1] `/v1/public/collections` es un borrador: estas pruebas cambian con él.
@@ -76,6 +76,9 @@ test("catálogo: filtro por bodega y orden, en la URL", async ({ page }) => {
   await expect(count(page)).toHaveText(CATALOG.where((c) => c.winery.slug === "altos-de-calamuchita"));
   await expect(cards(page).first()).toContainText("Bodega Altos de Calamuchita");
   await page.getByRole("button", { name: "Quitar filtros" }).click();
+  // Se espera a que el filtro salga de la URL antes de seguir (el cambio de ruta no es inmediato).
+  await expect(page).toHaveURL(/\/catalogo$/);
+  await expect(count(page)).toHaveText(CATALOG.total);
 
   // El orden lo aplica el catálogo (`?sort=`); el de por defecto no se escribe en la URL.
   await page.getByRole("combobox", { name: "Ordenar por" }).selectOption({ label: "Precio: de menor a mayor" });
@@ -89,26 +92,26 @@ test("catálogo: filtro por bodega y orden, en la URL", async ({ page }) => {
   await expect(cards(page).first().getByRole("link")).toHaveText(CATALOG.cheapest.name);
 });
 
-test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin compra)", async ({ page }) => {
+test("ficha de colección: precio, disponibilidad, edición numerada y lote", async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto("/catalogo");
   await cards(page).getByRole("link", { name: CASE.name }).click();
-  await expect(page).toHaveURL(new RegExp(`/catalogo/${CASE.collectionSlug}$`));
+  await expect(page).toHaveURL(new RegExp(`${CASE.collectionPath}$`));
 
   await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
   await expect(page.getByText("Singani · Añada 2026")).toBeVisible();
-  await expect(page.getByText(/^Bs\s185$/)).toBeVisible();
+  await expect(page.getByText(/^Bs\s280$/)).toBeVisible();
   await expect(page.getByText("A la venta", { exact: true })).toBeVisible();
-  await expect(page.getByText(/^Quedan [\d.]+ de 2\.950 botellas$/)).toBeVisible();
+  await expect(page.getByText(/^Quedan [\d.]+ de 60 botellas$/)).toBeVisible();
+  await expect(page.getByText("Edición numerada: «Botella N de 60»")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Notas de cata" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Maridaje" })).toBeVisible();
 
-  // Sin compra ni cuenta: la acción lleva a la lista de espera de la landing.
-  await expect(page.getByRole("link", { name: "Avísame" })).toHaveAttribute(
-    "href",
-    "https://landing.ejemplo.test/lista-de-espera?src=marketplace",
-  );
-  await expect(page.getByRole("button", { name: /comprar|adquirir|pagar/i })).toHaveCount(0);
+  // Con la bandera de la cuenta (como corren estas pruebas) una colección con precio y botellas se
+  // compra; «Avísame» queda para las que no se pueden comprar (y para la bandera apagada:
+  // `sin-cuenta.spec.ts`).
+  await expect(page.getByRole("button", { name: "Comprar", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Avísame" })).toHaveCount(0);
 
   // Línea de tiempo del lote y paso a su pasaporte.
   const journey = page.getByRole("region", { name: "El lote, paso a paso" });
@@ -121,17 +124,85 @@ test("ficha de colección: precio, disponibilidad, lote y «Avísame» (sin comp
 });
 
 test("ficha en preventa sin precio: «Precio por anunciar»", async ({ page }) => {
-  await page.goto(`/catalogo/${NO_PRICE_COLLECTION.slug}`);
+  await page.goto(NO_PRICE_COLLECTION.path);
   await expect(page.getByRole("heading", { level: 1, name: NO_PRICE_COLLECTION.name })).toBeVisible();
   await expect(page.getByText("Precio por anunciar")).toBeVisible();
   await expect(page.getByText("Preventa", { exact: true })).toBeVisible();
   await expect(page.getByText(/^Lista hacia el /)).toBeVisible();
   await expect(page.getByText("El pasaporte del lote se publica cuando se embotella.")).toBeVisible();
   await expect(page.getByText(/^Bs\s\d/)).toHaveCount(0);
+  // Sin precio no hay compra: la acción lleva a la lista de espera de la landing.
+  await expect(page.getByRole("link", { name: "Avísame" })).toHaveAttribute(
+    "href",
+    "https://landing.ejemplo.test/lista-de-espera?src=marketplace",
+  );
+  await expect(page.getByRole("button", { name: /comprar|adquirir|pagar/i })).toHaveCount(0);
+});
+
+test("preventa real: sin precio, 100 botellas disponibles y su portada servida por la API", async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto("/colecciones/destileria-cinti-viejo/singani-preventa-2026");
+  await expect(page.getByRole("heading", { level: 1, name: "Singani Preventa 2026" })).toBeVisible();
+  await expect(page.getByText("Precio por anunciar")).toBeVisible();
+  await expect(page.getByText("Preventa", { exact: true })).toBeVisible();
+  await expect(page.getByText("Quedan 100 de 100 botellas")).toBeVisible();
+  await expect(page.getByText("Edición numerada: «Botella N de 100»")).toBeVisible();
+  await expect(page.getByText(/^Bs\s\d/)).toHaveCount(0);
+  // La portada llega por `/api/v1/public/collections/images/{id}` (el proxy del propio origen).
+  const cover = page.getByRole("main").locator("img").first();
+  await expect(cover).toHaveAttribute("src", /^\/api\/v1\/public\/collections\/images\//);
+  await expect
+    .poll(() => cover.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+    .toBeGreaterThan(0);
+  // Los hechos de la tokenización salen en el recorrido del lote.
+  await expect(page.getByRole("region", { name: "El lote, paso a paso" })).toContainText("Colección publicada");
+  await expectNoHorizontalScroll(page);
+  expect(errors).toEqual([]);
+});
+
+test("las direcciones antiguas de la ficha redirigen si el `slug` es de una sola bodega", async ({ page, request }) => {
+  // `/catalogo/{slug}` (Ola 2) → `/colecciones/{slug}` → `/colecciones/{slugBodega}/{slug}`.
+  const response = await request.get(`/catalogo/${CASE.collectionSlug}`, { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  expect(response.headers().location).toBe(`/colecciones/${CASE.collectionSlug}`);
+  await page.goto(`/catalogo/${CASE.collectionSlug}`);
+  await expect(page).toHaveURL(new RegExp(`${CASE.collectionPath}$`));
+  await expect(page.getByRole("heading", { level: 1, name: CASE.name })).toBeVisible();
+
+  await page.goto(`/colecciones/${CASE.collectionSlug}`);
+  await expect(page).toHaveURL(new RegExp(`${CASE.collectionPath}$`));
+});
+
+test("un `slug` que comparten dos bodegas, o que no existe, no se adivina: «No encontramos esta colección»", async ({
+  page,
+}) => {
+  const errors = trackErrors(page);
+  // «Singani Preventa 2026» existe en Destilería Cinti Viejo y en Altos de Calamuchita.
+  await page.goto("/colecciones/singani-preventa-2026");
+  await expect(page.getByRole("heading", { name: "No encontramos esta colección" })).toBeVisible();
+  await expect(page).toHaveURL(/\/colecciones\/singani-preventa-2026$/);
+  expect(await axe(page)).toEqual([]);
+
+  await page.goto("/catalogo/tampoco-existe");
+  await expect(page.getByRole("heading", { name: "No encontramos esta colección" })).toBeVisible();
+  await page.getByRole("link", { name: "Volver al catálogo" }).click();
+  await expect(page).toHaveURL(/\/catalogo$/);
+  expect(errors).toEqual([]);
+});
+
+test("dos bodegas con una colección del mismo nombre: cada tarjeta lleva a la suya", async ({ page }) => {
+  await page.goto("/catalogo");
+  const twins = cards(page).filter({ hasText: "Singani Preventa 2026" });
+  await expect(twins).toHaveCount(2);
+  await twins.filter({ hasText: "Bodega Altos de Calamuchita" }).getByRole("link").click();
+  await expect(page).toHaveURL(/\/colecciones\/altos-de-calamuchita\/singani-preventa-2026$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Singani Preventa 2026" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Bodega Altos de Calamuchita" })).toBeVisible();
+  await expect(page.getByText(/^Bs\s150$/)).toBeVisible();
 });
 
 test("una colección que no existe: aviso y vuelta al catálogo", async ({ page }) => {
-  await page.goto("/catalogo/no-existe");
+  await page.goto("/colecciones/destileria-cinti-viejo/no-existe");
   await expect(page.getByRole("heading", { name: "No encontramos esta colección" })).toBeVisible();
   await page.getByRole("link", { name: "Volver al catálogo" }).click();
   await expect(page).toHaveURL(/\/catalogo$/);

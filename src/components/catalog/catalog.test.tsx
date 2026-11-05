@@ -16,8 +16,9 @@ vi.mock("@/lib/links", async (original) => {
   return { ...actual, links: actual.buildLinks({ landing: "https://landing.ejemplo.bo", bodegas: "", app: "" }) };
 });
 
-const collection = (slug: string): Collection =>
-  structuredClone(publicFixtures.collections.find((c) => c.slug === slug)!);
+// El `slug` solo es único dentro de una bodega: por defecto, las de Destilería Cinti Viejo.
+const collection = (slug: string, winery = "destileria-cinti-viejo"): Collection =>
+  structuredClone(publicFixtures.collections.find((c) => c.slug === slug && c.winery.slug === winery)!);
 /** Los espacios duros de `Intl` (U+00A0, U+202F) como espacios normales. */
 const nbsp = (text: string) => text.replace(/[\u00a0\u202f]/g, " ");
 
@@ -50,13 +51,20 @@ describe("BottleCard", () => {
     const card = screen.getByRole("article");
     expect(within(card).getByRole("link", { name: "Singani Gran Reserva 2026" })).toHaveAttribute(
       "href",
-      "/catalogo/singani-gran-reserva-2026",
+      "/colecciones/destileria-cinti-viejo/singani-gran-reserva-2026",
     );
     expect(card).toHaveTextContent("Singani · 2026");
     expect(card).toHaveTextContent("Destilería Cinti Viejo");
     expect(card).toHaveTextContent("A la venta");
-    expect(nbsp(card.textContent ?? "")).toContain("Bs 185");
-    // Sin MSW (como aquí) las imágenes de demostración no existen: se pinta la ilustración.
+    expect(card).toHaveTextContent("60 disponibles");
+    expect(nbsp(card.textContent ?? "")).toContain("Bs 280");
+    // La portada de una colección real la sirve la API: se pide por el proxy del propio origen.
+    expect(card.querySelector("img")?.getAttribute("src")).toMatch(/^\/api\/v1\/public\/collections\/images\//);
+  });
+
+  it("sin MSW las imágenes de demostración no existen: se pinta la ilustración", () => {
+    render(<BottleCard collection={collection("singani-el-molino-2025")} />);
+    const card = screen.getByRole("article");
     expect(card.querySelector("img")).toBeNull();
     expect(card.querySelector("svg")).not.toBeNull();
   });
@@ -66,6 +74,12 @@ describe("BottleCard", () => {
     expect(screen.getByRole("article")).toHaveTextContent("Precio por anunciar");
     expect(screen.getByRole("article")).toHaveTextContent("Preventa");
   });
+
+  it("agotada: no anuncia botellas disponibles", () => {
+    render(<BottleCard collection={collection("vino-las-carreras-2025")} />);
+    expect(screen.getByRole("article")).toHaveTextContent("Agotado");
+    expect(screen.getByRole("article")).not.toHaveTextContent("disponibles");
+  });
 });
 
 describe("CollectionDetail", () => {
@@ -74,7 +88,8 @@ describe("CollectionDetail", () => {
   it("a la venta: precio, disponibilidad, lote con su línea de tiempo y enlace al pasaporte", () => {
     render(<CollectionDetail collection={collection("singani-gran-reserva-2026")} />);
     expect(screen.getByRole("heading", { level: 1, name: "Singani Gran Reserva 2026" })).toBeInTheDocument();
-    expect(screen.getByText("Quedan 1.269 de 2.950 botellas")).toBeInTheDocument();
+    expect(screen.getByText("Quedan 60 de 60 botellas")).toBeInTheDocument();
+    expect(screen.getByText("Edición numerada: «Botella N de 60»")).toBeInTheDocument();
     expect(screen.getByText("A la venta")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Destilería Cinti Viejo" })).toHaveAttribute(
       "href",
@@ -105,6 +120,27 @@ describe("CollectionDetail", () => {
     expect(screen.getByText(/Lista hacia el 30 jun 2027/)).toBeInTheDocument();
     expect(screen.getByText("Estado del lote: En el viñedo")).toBeInTheDocument();
     expect(screen.getByText("El pasaporte del lote se publica cuando se embotella.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ver el pasaporte del lote" })).toBeNull();
+  });
+
+  it("manda `saleState` y `counts.available` (contrato §13.1) sobre los nombres del borrador anterior", () => {
+    const c = collection("singani-gran-reserva-2026");
+    c.status = "PRESALE";
+    c.availability.available = 1;
+    c.saleState = "ON_SALE";
+    c.counts.available = 12;
+    render(<CollectionDetail collection={c} />);
+    expect(screen.getByText("A la venta")).toBeInTheDocument();
+    expect(screen.getByText("Quedan 12 de 60 botellas")).toBeInTheDocument();
+  });
+
+  it("preventa real sin precio: «Precio por anunciar», 100 disponibles y sin pasaporte todavía", () => {
+    render(<CollectionDetail collection={collection("singani-preventa-2026")} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Singani Preventa 2026" })).toBeInTheDocument();
+    expect(screen.getByText("Precio por anunciar")).toBeInTheDocument();
+    expect(screen.getByText("Preventa")).toBeInTheDocument();
+    expect(screen.getByText("Quedan 100 de 100 botellas")).toBeInTheDocument();
+    expect(screen.getByText("Edición numerada: «Botella N de 100»")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ver el pasaporte del lote" })).toBeNull();
   });
 
@@ -169,5 +205,7 @@ describe("usableImageUrl", () => {
     expect(usableImageUrl("//otro.ejemplo/x.png")).toBeNull();
     expect(usableImageUrl("https://cdn.ejemplo.bo/x.jpg")).toBe("https://cdn.ejemplo.bo/x.jpg");
     expect(usableImageUrl("/uploads/x.jpg")).toBe("/uploads/x.jpg");
+    // Las imágenes que sirve la API van por el proxy del propio origen.
+    expect(usableImageUrl("/v1/public/collections/images/abc")).toBe("/api/v1/public/collections/images/abc");
   });
 });

@@ -27,6 +27,15 @@ export const fmtDateTime = (iso: string) =>
     .format(new Date(iso))
     .replace(".", "");
 
+/** Hora en Bolivia, "14:35" (para decir hasta cuándo se guarda una reserva). */
+export const fmtTime = (iso: string) =>
+  new Intl.DateTimeFormat(LOCALE, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/La_Paz",
+  }).format(new Date(iso));
+
 /**
  * Precio en bolivianos a partir del importe en céntimos: "Bs 185" o "Bs 185,50" (sin decimales
  * cuando el importe es entero).

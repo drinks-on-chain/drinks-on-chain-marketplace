@@ -1,24 +1,29 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SearchX } from "lucide-react";
 import { Badge, Button, EmptyState, ErrorState, Skeleton, TextLink } from "@drinks-on-chain/ui";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import type { Collection } from "@/lib/catalog/api";
-import { useCollection } from "@/lib/catalog/hooks";
+import { useCollection, useCollectionsBySlug } from "@/lib/catalog/hooks";
+import { availableOf, editionSizeOf, isPurchasable, isSoldOut, saleStateOf } from "@/lib/catalog/sale";
 import { env } from "@/lib/env";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { es } from "@/lib/i18n/es";
 import { links, routes } from "@/lib/links";
+import { BuyButton } from "../checkout/checkout-sheet";
 import { CollectionArt, STATUS_TONE } from "../store/bottle-card";
 import { JourneyTimeline } from "../store/journey-timeline";
 import { PriceTag } from "../store/price-tag";
 
 // 2A · Ficha de una colección.
-// [BORRADOR §17.1] Pinta el borrador del catálogo: precio que puede faltar, disponibilidad,
-// estados PRESALE / ON_SALE / SOLD_OUT y la línea de tiempo del lote. Sin compra ni cuenta en
-// esta ola: la llamada a la acción es "Avísame", hacia la lista de espera de la landing.
+// [BORRADOR §13.1] Pinta el borrador del catálogo: precio que puede faltar, botellas disponibles
+// (`counts.available`), `saleState` PRESALE / ON_SALE / SOLD_OUT, la edición numerada («Botella N
+// de M») y la línea de tiempo del lote. La llamada a la acción es "Avísame", hacia la lista de
+// espera de la landing; con la bandera de la cuenta (2C contra mocks) y una colección que se puede
+// comprar, es "Comprar" (`CheckoutSheet`).
 
 const t = es.catalog;
 
@@ -35,12 +40,12 @@ function Block({ id, title, children }: { id: string; title: string; children: R
 
 /** Disponibilidad en palabras, sin cifras inventadas. */
 function availabilityText(collection: Collection): string {
-  const { available, total } = collection.availability;
-  if (collection.status === "SOLD_OUT" || available === 0) return t.soldOut;
-  return t.available(fmtNumber(available), fmtNumber(total));
+  if (isSoldOut(collection)) return t.soldOut;
+  return t.available(fmtNumber(availableOf(collection)), fmtNumber(editionSizeOf(collection)));
 }
 
 export function CollectionDetail({ collection }: { collection: Collection }) {
+  const saleState = saleStateOf(collection);
   return (
     <article className="px-5 py-8 md:px-8 md:py-14">
       <div className="grid gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:gap-14">
@@ -68,18 +73,22 @@ export function CollectionDetail({ collection }: { collection: Collection }) {
                 <PriceTag price={collection.price} size="lg" />
                 {collection.price ? <span className="font-ui text-sm text-fg-muted">{t.pricePerBottle}</span> : null}
               </p>
-              <Badge tone={STATUS_TONE[collection.status]} size="lg">
-                {t.statuses[collection.status]}
+              <Badge tone={STATUS_TONE[saleState]} size="lg">
+                {t.statuses[saleState]}
               </Badge>
             </div>
             <ul className="m-0 grid list-none gap-1 p-0 font-ui text-sm text-fg-muted">
               <li>{availabilityText(collection)}</li>
+              <li>{t.edition(fmtNumber(editionSizeOf(collection)))}</li>
               <li>
                 {t.lotStage}: {t.lotStages[collection.lotStage] ?? collection.lotStage}
               </li>
               {collection.estimatedReadyDate ? <li>{t.readyDate(fmtDate(collection.estimatedReadyDate))}</li> : null}
             </ul>
-            {links.waitlist ? (
+            {env.account && isPurchasable(collection) ? (
+              // 2C (solo con la bandera de la cuenta): con precio y botellas disponibles, se compra.
+              <BuyButton collection={collection} />
+            ) : links.waitlist ? (
               <>
                 <Button asChild size="lg" block className="mt-2">
                   <a href={links.waitlist}>{t.notify}</a>
@@ -131,8 +140,62 @@ function BackToCatalog() {
   );
 }
 
-export function CollectionScreen({ slug }: { slug: string }) {
-  const collection = useCollection(slug);
+function NotFound() {
+  return (
+    <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
+      {/* Lo que no se encontró no se indexa (con mocks ya lo dice el layout: una sola etiqueta). */}
+      {env.mocks ? null : <meta name="robots" content="noindex" />}
+      <h1 className="sr-only">{t.title}</h1>
+      <EmptyState
+        icon={<SearchX aria-hidden />}
+        title={t.notFoundTitle}
+        description={t.notFoundBody}
+        action={<BackToCatalog />}
+      />
+    </div>
+  );
+}
+
+/**
+ * Dirección antigua de la ficha, solo con el `slug` (`/colecciones/{slug}`, y `/catalogo/{slug}`
+ * de la Ola 2). El `slug` ya solo es único dentro de una bodega: si una sola lo tiene, se lleva a
+ * su ficha; si lo tienen varias o ninguna, no se adivina: "No encontramos esta colección".
+ */
+export function CollectionBySlugScreen({ slug }: { slug: string }) {
+  const router = useRouter();
+  const matches = useCollectionsBySlug(slug);
+  const only = matches.data?.length === 1 ? matches.data[0] : undefined;
+  useEffect(() => {
+    if (only) router.replace(routes.collection(only.winery.slug, only.slug));
+  }, [only, router]);
+
+  if (matches.isError) {
+    return (
+      <div className="mx-auto w-full max-w-[46rem] px-5 py-10 md:px-8 md:py-16">
+        <h1 className="sr-only">{t.title}</h1>
+        <ErrorState
+          title={t.errorTitle}
+          description={errorMessage(matches.error)}
+          onRetry={() => void matches.refetch()}
+          retrying={matches.isRefetching}
+          retryLabel={es.common.retry}
+        />
+      </div>
+    );
+  }
+  if (matches.isPending || only) {
+    return (
+      <div role="status" aria-busy="true" className="px-5 py-8 md:px-8 md:py-14">
+        <span className="sr-only">{es.common.loading}</span>
+        <Skeleton shape="block" className="h-40" />
+      </div>
+    );
+  }
+  return <NotFound />;
+}
+
+export function CollectionScreen({ winerySlug, slug }: { winerySlug: string; slug: string }) {
+  const collection = useCollection(winerySlug, slug);
 
   if (collection.isPending) {
     return (

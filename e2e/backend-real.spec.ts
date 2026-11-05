@@ -29,7 +29,10 @@ test("el pasaporte del lote va en el HTML inicial, con sus metadatos, y se puede
 test("al hidratar no vuelve a pedir el pasaporte (lo pidió el servidor)", async ({ page }) => {
   const apiCalls: string[] = [];
   page.on("request", (r) => {
-    if (new URL(r.url()).pathname.startsWith("/api/v1/public/")) apiCalls.push(r.url());
+    const path = new URL(r.url()).pathname;
+    // Con el expediente anclado (backend de la Ola 3) el navegador sí descarga el expediente y
+    // pide la verificación para comprobar el anclaje; el pasaporte, nunca.
+    if (path.startsWith("/api/v1/public/") && !/\/(dossier|verification)$/.test(path)) apiCalls.push(r.url());
   });
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -42,12 +45,45 @@ test("al hidratar no vuelve a pedir el pasaporte (lo pidió el servidor)", async
   expect(errors).toEqual([]);
 });
 
+test("anclaje en la red: funciona con un backend sin anclajes y, si lo hay, la huella recalculada coincide", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(m.text());
+  });
+  const verification: number[] = [];
+  page.on("response", (r) => {
+    if (new URL(r.url()).pathname.endsWith("/verification")) verification.push(r.status());
+  });
+
+  await page.goto(`/b/${LOT}`);
+  const region = page.getByRole("region", { name: "Anclaje en la red" });
+  await expect(region).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const text = (await region.textContent()) ?? "";
+  if (/Anclado/.test(text)) {
+    // Backend de la Ola 3: el recálculo en el navegador cuadra y hay cuatro comprobaciones.
+    await expect(region.getByText("La huella recalculada coincide")).toBeVisible();
+    await expect(region.getByRole("list", { name: "Comprobaciones" }).getByRole("listitem")).toHaveCount(4);
+  } else {
+    // Backend de la Ola 2 (`anchor: null`) o anclaje sin confirmar: se dice y no se pide nada más.
+    expect(text).toMatch(/Sin anclaje|Anclaje en la red: pendiente/);
+    await expect(region.getByRole("link")).toHaveCount(0);
+    expect(verification).toEqual([]);
+  }
+  // Sin rastro de cuenta ni de compra contra el backend real (bandera apagada).
+  await expect(page.getByRole("link", { name: /Entrar|Mi cuenta|Crear cuenta/ })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("sin JavaScript el lote se lee entero", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   await page.goto(`/b/${LOT}`);
   await expect(page.locator("h1")).not.toBeEmpty();
-  await expect(page.locator("main h2")).toContainText(["Expediente del lote", "Origen", "Elaboración"]);
+  await expect(page.locator("main h2")).toContainText(["Expediente del lote", "Anclaje en la red", "Origen"]);
   await context.close();
 });
 

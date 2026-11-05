@@ -35,7 +35,6 @@ test("botella: serie N de M, lote, bodega y comprobación contra el expediente c
   const dossier = page.getByRole("region", { name: "Expediente del lote" });
   await expect(dossier).toContainText("Expediente cerrado el");
   await expect(dossier.locator("code").first()).toHaveText(/^[0-9a-f]{8}…[0-9a-f]{8}$/);
-  await expect(dossier).toContainText("Anclaje en la red: pendiente");
 
   // Roles, no nombres; y las correcciones, contadas.
   const log = page.getByRole("region", { name: "Registro del lote" });

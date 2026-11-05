@@ -3,11 +3,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { luhnMod32CheckChar } from "@drinks-on-chain/mocks";
 import { SINGANI_CASE, publicFixtures } from "@drinks-on-chain/mocks/fixtures";
 import { PUBLIC_LOOKUP_LIMIT } from "@drinks-on-chain/mocks/handlers";
-import { resetErpDb, setupMockServer } from "@drinks-on-chain/mocks/node";
+import { resetErpDb, resetScenario, setScenario, setupMockServer } from "@drinks-on-chain/mocks/node";
+import { HttpResponse, http } from "msw";
 import { ApiError } from "@/lib/api/errors";
-import { fetchCollection, fetchCollections, isCatalogUnavailable } from "@/lib/catalog/api";
-import { fetchCanonicalDossier, fetchPassport, passportErrorState } from "@/lib/passport/api";
-import type { BottlePassport } from "@/lib/passport/types";
+import { fetchCollection, fetchCollections, findCollectionsBySlug, isCatalogUnavailable } from "@/lib/catalog/api";
+import { anchorChecks, anchorStage, recomputeFingerprint } from "@/lib/passport/anchor";
+import {
+  fetchCanonicalDossier,
+  fetchCanonicalDossierBytes,
+  fetchLotVerification,
+  fetchPassport,
+  passportErrorState,
+} from "@/lib/passport/api";
+import type { BottlePassport, LotPassport } from "@/lib/passport/types";
 import { proofLeaf, verifyBottleProof } from "@/lib/passport/verify";
 import { fetchWineries, fetchWinery } from "@/lib/wineries/api";
 
@@ -75,11 +83,11 @@ describe("pasaporte público", () => {
     }
   });
 
-  it("el caso del contrato: expediente cerrado, con huella, y una corrección registrada", async () => {
+  it("el caso del contrato: expediente cerrado y anclado, con huella, y una corrección registrada", async () => {
     const passport = await fetchPassport(CASE_LOT);
     if (passport.kind !== "LOT") throw new Error("no es un lote");
     expect(passport.name).toBe(SINGANI_CASE.name);
-    expect(passport.stage).toBe("CERTIFIED");
+    expect(passport.stage).toBe("ANCHORED");
     expect(passport.dossier).toMatchObject({ status: "CLOSED", canonicalUrl: `/v1/public/lots/${CASE_LOT}/dossier` });
     expect(passport.dossier.hash).toMatch(/^[0-9a-f]{64}$/);
     expect(passport.corrections.count).toBeGreaterThan(0);
@@ -157,6 +165,88 @@ describe("comprobación de la botella contra el expediente (prueba Merkle)", () 
   });
 });
 
+describe("anclaje del expediente en la red (contrato de la Ola 3 §7.3)", () => {
+  async function caseLot(): Promise<LotPassport> {
+    const passport = await fetchPassport(CASE_LOT);
+    if (passport.kind !== "LOT") throw new Error("no es un lote");
+    return passport;
+  }
+
+  it("el caso del contrato está anclado: memo = huella, con su transacción y el enlace del backend", async () => {
+    const lot = await caseLot();
+    expect(anchorStage(lot)).toBe("anchored");
+    expect(lot.dossier.anchor).toMatchObject({ status: "ANCHORED", memoHashHex: lot.dossier.hash });
+    expect(lot.dossier.anchor?.txHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(lot.dossier.anchor?.explorerUrl).toMatch(/^https:\/\//);
+    expect(lot.timeline.map((e) => e.type)).toEqual(expect.arrayContaining(["DOSSIER_ANCHORED", "TOKENS_REDEEMABLE"]));
+  });
+
+  it("los bytes canónicos descargados dan, con WebCrypto, la huella publicada y la del memo", async () => {
+    const lot = await caseLot();
+    const bytes = (await fetchCanonicalDossierBytes(lot))!;
+    await expect(
+      recomputeFingerprint(bytes, { dossierHash: lot.dossier.hash, memoHashHex: lot.dossier.anchor!.memoHashHex }),
+    ).resolves.toEqual({ status: "match", computed: lot.dossier.hash });
+    // Con un byte cambiado ya no coincide con ninguna.
+    const tampered = bytes.slice();
+    tampered[tampered.length - 2]! ^= 1;
+    await expect(
+      recomputeFingerprint(tampered, { dossierHash: lot.dossier.hash, memoHashHex: lot.dossier.anchor!.memoHashHex }),
+    ).resolves.toMatchObject({ status: "mismatch", dossier: false, memo: false });
+  });
+
+  it("`…/verification` trae las cuatro comprobaciones, todas cumplidas en el caso", async () => {
+    const lot = await caseLot();
+    const verification = await fetchLotVerification(CASE_LOT);
+    expect(verification).not.toBeNull();
+    expect(verification!.officialAnchorAccount).toBe(lot.dossier.anchor!.account);
+    const checks = anchorChecks(lot, verification);
+    expect(checks.map((c) => [c.key, c.pass, c.source])).toEqual([
+      ["DOSSIER_CLOSED", true, "server"],
+      ["ANCHOR_CONFIRMED", true, "server"],
+      ["MEMO_MATCHES_HASH", true, "server"],
+      ["ANCHOR_ACCOUNT_OFFICIAL", true, "server"],
+    ]);
+    for (const check of checks) expect(check.message).toBeTruthy();
+  });
+
+  it("un backend que aún no publica la verificación (404 o 501) no es un error: `null`", async () => {
+    for (const status of [404, 501]) {
+      server.use(
+        http.get(`${ORIGIN}/api/v1/public/lots/:lotCode/verification`, () =>
+          HttpResponse.json(
+            {
+              success: false,
+              statusCode: status,
+              error: { code: status === 404 ? "NOT_FOUND" : "NOT_IMPLEMENTED", message: "" },
+            },
+            { status },
+          ),
+        ),
+      );
+      await expect(fetchLotVerification(CASE_LOT)).resolves.toBeNull();
+      server.resetHandlers();
+    }
+    // Otro fallo sí se propaga, para poder reintentar.
+    server.use(
+      http.get(`${ORIGIN}/api/v1/public/lots/:lotCode/verification`, () => HttpResponse.json({}, { status: 500 })),
+    );
+    await expect(fetchLotVerification(CASE_LOT)).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("con el anclaje aún en la red (escenario `anclaje-pendiente`), el lote sigue certificado y pendiente", async () => {
+    setScenario("anclaje-pendiente");
+    try {
+      const lot = await caseLot();
+      expect(lot.stage).toBe("CERTIFIED");
+      expect(anchorStage(lot)).toBe("pending");
+      expect(lot.dossier.anchor).toMatchObject({ status: "PENDING", txHash: null, explorerUrl: null });
+    } finally {
+      resetScenario();
+    }
+  });
+});
+
 describe("bodegas", () => {
   it("el directorio y la ficha cumplen el esquema", async () => {
     const page = await fetchWineries();
@@ -195,19 +285,49 @@ describe("catálogo (BORRADOR §17.1)", () => {
   });
 
   it("la ficha trae la línea de tiempo del lote; el precio puede faltar", async () => {
-    const collection = await fetchCollection("singani-gran-reserva-2026");
+    const collection = await fetchCollection("destileria-cinti-viejo", "singani-gran-reserva-2026");
     expect(collection.lot.lotCode).toBe(CASE_LOT);
     expect(collection.lot.timeline.length).toBeGreaterThan(0);
 
     const withoutPrice = publicFixtures.collections.find((c) => c.price === null)!;
-    await expect(fetchCollection(withoutPrice.slug)).resolves.toMatchObject({ price: null, status: "PRESALE" });
+    await expect(fetchCollection(withoutPrice.winery.slug, withoutPrice.slug)).resolves.toMatchObject({
+      price: null,
+      status: "PRESALE",
+    });
   });
 
   it("un catálogo que el backend aún no publica (404 o 501) no es un error de la pantalla", async () => {
     expect(isCatalogUnavailable(new ApiError({ status: 404, code: "NOT_FOUND", message: "" }))).toBe(true);
     expect(isCatalogUnavailable(new ApiError({ status: 501, code: "NOT_IMPLEMENTED", message: "" }))).toBe(true);
     expect(isCatalogUnavailable(new ApiError({ status: 500, code: "INTERNAL_ERROR", message: "" }))).toBe(false);
-    await expect(fetchCollection("no-existe")).rejects.toMatchObject({ status: 404 });
+    await expect(fetchCollection("destileria-cinti-viejo", "no-existe")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("el `slug` es único por bodega: la ficha se pide con la bodega, y la dirección antigua solo vale sin ambigüedad", async () => {
+    const [altos, cinti] = await Promise.all([
+      fetchCollection("altos-de-calamuchita", "singani-preventa-2026"),
+      fetchCollection("destileria-cinti-viejo", "singani-preventa-2026"),
+    ]);
+    expect(altos.id).not.toBe(cinti.id);
+    expect(altos.winery.slug).toBe("altos-de-calamuchita");
+    expect(cinti.price).toBeNull();
+    // La colección de una bodega no existe bajo otra.
+    await expect(fetchCollection("altos-de-calamuchita", "singani-gran-reserva-2026")).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await findCollectionsBySlug("singani-preventa-2026")).map((c) => c.winery.slug).sort()).toEqual([
+      "altos-de-calamuchita",
+      "destileria-cinti-viejo",
+    ]);
+    expect((await findCollectionsBySlug("singani-gran-reserva-2026")).map((c) => c.winery.slug)).toEqual([
+      "destileria-cinti-viejo",
+    ]);
+    await expect(findCollectionsBySlug("no-existe")).resolves.toEqual([]);
+    // La ruta de un solo segmento (`/v1/public/collections/{slug}`) se retiró en mocks 0.6.0-rc.3:
+    // la dirección antigua de la ficha se resuelve con la lista, como aquí.
+    // Los `id` del catálogo no se repiten (son la clave de las listas).
+    const ids = (await fetchCollections({}, { limit: 100 })).items.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

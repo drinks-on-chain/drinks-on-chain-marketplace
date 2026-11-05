@@ -7,7 +7,7 @@ import { Button, EmptyState, ErrorState, Skeleton } from "@drinks-on-chain/ui";
 import { waitText } from "@/lib/api/errors";
 import type { MalformedCode, ValidCode } from "@/lib/codes/parse";
 import { es } from "@/lib/i18n/es";
-import { downloadCanonicalDossier, useBottleProof, usePassport } from "@/lib/passport/hooks";
+import { downloadCanonicalDossier, useAnchorVerification, useBottleProof, usePassport } from "@/lib/passport/hooks";
 import { lotOf, type Passport, type PassportQuery } from "@/lib/passport/types";
 import { CodeEntryForm } from "../code-entry-form";
 import { PassportDocument } from "./passport-document";
@@ -54,17 +54,19 @@ function PassportSkeleton() {
 }
 
 /**
- * Pasaporte encontrado: lo pinta `PassportDocument`, y aquí se conectan las dos acciones que
- * necesitan red: comprobar la botella contra el expediente y descargarlo.
+ * Pasaporte encontrado: lo pinta `PassportDocument`, y aquí se conecta lo que necesita red:
+ * comprobar la botella contra el expediente, verificar su anclaje y descargarlo.
  */
 function PassportFound({ passport, fromBottle }: { passport: Passport; fromBottle: string | null }) {
   const proof = useBottleProof(passport);
+  const anchor = useAnchorVerification(lotOf(passport));
   const download = useMutation({ mutationFn: () => downloadCanonicalDossier(lotOf(passport)) });
   return (
     <PassportDocument
       passport={passport}
       fromBottle={fromBottle}
       proof={proof}
+      anchor={anchor}
       download={{ onDownload: () => download.mutate(), pending: download.isPending, failed: download.isError }}
     />
   );
